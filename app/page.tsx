@@ -1,58 +1,82 @@
-import { DeployButton } from "@/components/deploy-button";
-import { EnvVarWarning } from "@/components/env-var-warning";
-import { AuthButton } from "@/components/auth-button";
-import { Hero } from "@/components/hero";
-import { ThemeSwitcher } from "@/components/theme-switcher";
-import { ConnectSupabaseSteps } from "@/components/tutorial/connect-supabase-steps";
-import { SignUpUserSteps } from "@/components/tutorial/sign-up-user-steps";
-import { hasEnvVars } from "@/lib/utils";
-import Link from "next/link";
-import { Suspense } from "react";
+import AtlasExplorer from "@/components/AtlasExplorer";
+import { createClient } from "@/lib/supabase/server";
 
-export default function Home() {
+export const instant = false;
+
+export default async function HomePage() {
+  const supabase = await createClient();
+
+  const {
+    data: genres,
+    error: genresError,
+  } = await supabase
+    .from("genres")
+    .select(
+      `
+      id,
+      name,
+      slug
+      `
+    )
+    .eq("active", true)
+    .order("name");
+
+  if (genresError) {
+    throw new Error(
+      genresError.message
+    );
+  }
+
   return (
-    <main className="min-h-screen flex flex-col items-center">
-      <div className="flex-1 w-full flex flex-col gap-20 items-center">
-        <nav className="w-full flex justify-center border-b border-b-foreground/10 h-16">
-          <div className="w-full max-w-5xl flex justify-between items-center p-3 px-5 text-sm">
-            <div className="flex gap-5 items-center font-semibold">
-              <Link href={"/"}>Next.js Supabase Starter</Link>
-              <div className="flex items-center gap-2">
-                <DeployButton />
-              </div>
-            </div>
-            {!hasEnvVars ? (
-              <EnvVarWarning />
-            ) : (
-              <Suspense>
-                <AuthButton />
-              </Suspense>
-            )}
-          </div>
-        </nav>
-        <div className="flex-1 flex flex-col gap-20 max-w-5xl p-5">
-          <Hero />
-          <main className="flex-1 flex flex-col gap-6 px-4">
-            <h2 className="font-medium text-xl mb-4">Next steps</h2>
-            {hasEnvVars ? <SignUpUserSteps /> : <ConnectSupabaseSteps />}
-          </main>
-        </div>
+    <main className="min-h-screen bg-[#f3efe4] text-black">
+      {/* ======================================
+          HERO
+      ====================================== */}
 
-        <footer className="w-full flex items-center justify-center border-t mx-auto text-center text-xs gap-8 py-16">
-          <p>
-            Powered by{" "}
-            <a
-              href="https://supabase.com/?utm_source=create-next-app&utm_medium=template&utm_term=nextjs"
-              target="_blank"
-              className="font-bold hover:underline"
-              rel="noreferrer"
-            >
-              Supabase
-            </a>
-          </p>
-          <ThemeSwitcher />
-        </footer>
-      </div>
+      <section className="border-b-2 border-black">
+        <div className="mx-auto max-w-7xl px-5 py-7 sm:px-8 sm:py-12 lg:px-10 lg:py-14">
+          <div className="max-w-5xl">
+            <p className="text-xs font-black uppercase tracking-[0.25em]">
+              Underground Atlas
+            </p>
+
+            <h1 className="mt-4 max-w-5xl text-[clamp(3rem,9vw,8rem)] font-black uppercase leading-[0.86] tracking-[-0.05em]">
+              Explore Underground Music by Place
+            </h1>
+
+            <p className="mt-5 max-w-2xl text-base font-medium leading-7 sm:mt-7 sm:text-xl sm:leading-8">
+              Discover contemporary underground artists,
+              local scenes, and independent sounds through
+              the places where they are happening.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* ======================================
+          ATLAS
+      ====================================== */}
+
+      <AtlasExplorer
+        genres={genres ?? []}
+      />
+
+      {/* ======================================
+          FOOTER
+      ====================================== */}
+
+      <footer className="border-t-2 border-black bg-white">
+        <div className="mx-auto flex max-w-7xl flex-col gap-3 px-5 py-6 text-xs font-bold uppercase tracking-[0.12em] sm:flex-row sm:items-center sm:justify-between sm:px-8 lg:px-10">
+          <span>
+            Independent music,
+            mapped geographically.
+          </span>
+
+          <span className="text-black/50">
+            Underground Atlas
+          </span>
+        </div>
+      </footer>
     </main>
   );
 }
