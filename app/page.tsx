@@ -37,7 +37,7 @@ export default async function HomePage() {
         <div className="mx-auto max-w-7xl px-5 py-7 sm:px-8 sm:py-12 lg:px-10 lg:py-14">
           <div className="max-w-5xl">
             <p className="text-xs font-black uppercase tracking-[0.25em]">
-              Underground Atlas
+              Map the Underground
             </p>
 
             <h1 className="mt-4 max-w-5xl text-[clamp(3rem,9vw,8rem)] font-black uppercase leading-[0.86] tracking-[-0.05em]">
