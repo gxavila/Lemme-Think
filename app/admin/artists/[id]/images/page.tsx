@@ -49,7 +49,10 @@ export default async function ArtistImagesPage({
     .select(
       "role, active"
     )
-    .eq("id", userId)
+    .eq(
+      "id",
+      userId
+    )
     .single();
 
   if (
@@ -75,7 +78,10 @@ export default async function ArtistImagesPage({
     .select(
       "id, name, slug"
     )
-    .eq("id", id)
+    .eq(
+      "id",
+      id
+    )
     .single();
 
   if (
@@ -102,7 +108,9 @@ export default async function ArtistImagesPage({
       alt_text,
       photographer,
       source_url,
-      sort_order
+      sort_order,
+      position_x,
+      position_y
       `
     )
     .eq(
@@ -171,6 +179,8 @@ export default async function ArtistImagesPage({
                 | string
                 | null;
               sort_order: number;
+              position_x: number;
+              position_y: number;
             }[]
           }
         />

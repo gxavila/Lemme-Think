@@ -17,6 +17,8 @@ type ArtistImage = {
   alt_text: string | null;
   photographer: string | null;
   sort_order: number;
+  position_x: number | null;
+  position_y: number | null;
 };
 
 type ArtistLink = {
@@ -79,10 +81,8 @@ function formatPlatform(
 ) {
   return platform
     .replaceAll("_", " ")
-    .replace(
-      /\b\w/g,
-      (letter) =>
-        letter.toUpperCase()
+    .replace(/\b\w/g, (letter) =>
+      letter.toUpperCase()
     );
 }
 
@@ -95,24 +95,23 @@ function formatRecommendation(
 
   return type
     .replaceAll("_", " ")
-    .replace(
-      /\b\w/g,
-      (letter) =>
-        letter.toUpperCase()
+    .replace(/\b\w/g, (letter) =>
+      letter.toUpperCase()
     );
 }
 
 function formatDuration(
   seconds: number | null
 ) {
-  if (!seconds) {
+  if (
+    seconds === null ||
+    seconds === undefined
+  ) {
     return null;
   }
 
   const minutes =
-    Math.floor(
-      seconds / 60
-    );
+    Math.floor(seconds / 60);
 
   const remainingSeconds =
     seconds % 60;
@@ -348,7 +347,8 @@ export default async function ArtistPage({
           {/* HERO IMAGE */}
 
           <div className="relative min-h-[420px] bg-black lg:min-h-[620px]">
-            {heroImageUrl ? (
+            {heroImageUrl &&
+            heroImage ? (
               <>
                 <img
                   src={
@@ -359,6 +359,15 @@ export default async function ArtistPage({
                     artist.name
                   }
                   className="absolute inset-0 h-full w-full object-cover"
+                  style={{
+                    objectPosition: `${
+                      heroImage.position_x ??
+                      50
+                    }% ${
+                      heroImage.position_y ??
+                      50
+                    }%`,
+                  }}
                 />
 
                 <div className="absolute inset-0 bg-black/10" />
@@ -455,11 +464,16 @@ export default async function ArtistPage({
                               }
                             </h3>
 
-                            {track.recommendation_type && (
+                            {(
+                              track.recommendation_type ||
+                              track.featured
+                            ) && (
                               <span className="border-2 border-black px-2 py-1 text-[10px] font-black uppercase tracking-[0.12em]">
-                                {formatRecommendation(
-                                  track.recommendation_type
-                                )}
+                                {track.recommendation_type
+                                  ? formatRecommendation(
+                                      track.recommendation_type
+                                    )
+                                  : "Featured"}
                               </span>
                             )}
                           </div>
@@ -468,9 +482,7 @@ export default async function ArtistPage({
                             {track.release?.title && (
                               <span>
                                 {
-                                  track
-                                    .release
-                                    .title
+                                  track.release.title
                                 }
                               </span>
                             )}
@@ -568,64 +580,79 @@ export default async function ArtistPage({
                         }
                         className="border-2 border-black bg-white"
                       >
-                        {coverUrl ? (
-                          <div className="aspect-square overflow-hidden border-b-2 border-black bg-black">
-                            <img
-                              src={
-                                coverUrl
-                              }
-                              alt={
-                                release.title
-                              }
-                              className="h-full w-full object-cover"
-                            />
-                          </div>
-                        ) : (
-                          <div className="flex aspect-square items-center justify-center border-b-2 border-black bg-black p-6 text-center text-white">
-                            <span className="text-sm font-black uppercase tracking-[0.18em]">
-                              {
-                                release.title
-                              }
-                            </span>
-                          </div>
-                        )}
+                        {/* CLICKABLE RELEASE CARD */}
 
-                        <div className="p-5">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <p className="text-xl font-black uppercase">
-                              {
-                                release.title
-                              }
-                            </p>
-
-                            {release.featured && (
-                              <span className="border border-black px-2 py-1 text-[9px] font-black uppercase">
-                                Featured
+                        <Link
+                          href={`/artists/${artist.slug}/releases/${release.id}`}
+                          className="group block"
+                        >
+                          {coverUrl ? (
+                            <div className="aspect-square overflow-hidden border-b-2 border-black bg-black">
+                              <img
+                                src={
+                                  coverUrl
+                                }
+                                alt={
+                                  release.title
+                                }
+                                className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
+                              />
+                            </div>
+                          ) : (
+                            <div className="flex aspect-square items-center justify-center border-b-2 border-black bg-black p-6 text-center text-white transition-colors group-hover:bg-white group-hover:text-black">
+                              <span className="text-sm font-black uppercase tracking-[0.18em]">
+                                {
+                                  release.title
+                                }
                               </span>
-                            )}
-                          </div>
+                            </div>
+                          )}
 
-                          <div className="mt-2 flex flex-wrap gap-2 text-xs font-bold uppercase text-black/60">
-                            <span>
-                              {
-                                release.release_type
-                              }
-                            </span>
+                          <div className="p-5">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="text-xl font-black uppercase group-hover:underline">
+                                {
+                                  release.title
+                                }
+                              </p>
 
-                            {release.release_date && (
+                              {release.featured && (
+                                <span className="border border-black px-2 py-1 text-[9px] font-black uppercase">
+                                  Featured
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="mt-2 flex flex-wrap gap-2 text-xs font-bold uppercase text-black/60">
                               <span>
-                                •{" "}
-                                {release.release_date.slice(
-                                  0,
-                                  4
-                                )}
+                                {
+                                  release.release_type
+                                }
                               </span>
-                            )}
-                          </div>
 
-                          {!!release.links
-                            ?.length && (
-                            <div className="mt-5 flex flex-wrap gap-2">
+                              {release.release_date && (
+                                <span>
+                                  •{" "}
+                                  {release.release_date.slice(
+                                    0,
+                                    4
+                                  )}
+                                </span>
+                              )}
+                            </div>
+
+                            <p className="mt-5 text-[10px] font-black uppercase tracking-[0.14em]">
+                              View Tracks →
+                            </p>
+                          </div>
+                        </Link>
+
+                        {/* RELEASE LISTENING LINKS */}
+
+                        {!!release.links
+                          ?.length && (
+                          <div className="border-t-2 border-black p-5">
+                            <div className="flex flex-wrap gap-2">
                               {release.links.map(
                                 (
                                   link
@@ -647,8 +674,8 @@ export default async function ArtistPage({
                                 )
                               )}
                             </div>
-                          )}
-                        </div>
+                          </div>
+                        )}
                       </article>
                     );
                   }
