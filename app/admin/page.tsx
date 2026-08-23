@@ -1,23 +1,39 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+
 import { createClient } from "@/lib/supabase/server";
 
 export const instant = false;
 
 export default async function AdminPage() {
-  const supabase = await createClient();
+  const supabase =
+    await createClient();
 
-  const { data: claimsData } = await supabase.auth.getClaims();
+  const {
+    data: claimsData,
+  } =
+    await supabase.auth.getClaims();
 
-  const userId = claimsData?.claims?.sub;
+  const userId =
+    claimsData?.claims?.sub;
 
   if (!userId) {
     redirect("/auth/login");
   }
 
-  const { data: profile, error } = await supabase
+  const {
+    data: profile,
+    error,
+  } = await supabase
     .from("profiles")
-    .select("id, display_name, role, active")
+    .select(
+      `
+      id,
+      display_name,
+      role,
+      active
+      `
+    )
     .eq("id", userId)
     .single();
 
@@ -25,13 +41,22 @@ export default async function AdminPage() {
     error ||
     !profile ||
     !profile.active ||
-    !["admin", "editor"].includes(profile.role)
+    ![
+      "admin",
+      "editor",
+    ].includes(
+      profile.role
+    )
   ) {
     redirect("/");
   }
 
   return (
     <main className="min-h-screen bg-[#f3efe4] text-black">
+      {/* ======================================
+          HEADER
+      ====================================== */}
+
       <header className="border-b-2 border-black px-6 py-5">
         <div className="mx-auto flex max-w-6xl items-center justify-between">
           <div>
@@ -53,25 +78,43 @@ export default async function AdminPage() {
         </div>
       </header>
 
+      {/* ======================================
+          CONTENT
+      ====================================== */}
+
       <section className="mx-auto max-w-6xl px-6 py-12">
+        {/* ==================================
+            USER
+        ================================== */}
+
         <div className="border-b-2 border-black pb-8">
           <p className="text-xs font-bold uppercase tracking-[0.2em]">
             Signed In
           </p>
 
           <p className="mt-2 text-xl font-black">
-            {profile.display_name}
+            {
+              profile.display_name
+            }
           </p>
 
           <p className="mt-1 text-sm uppercase">
-            {profile.role}
+            {
+              profile.role
+            }
           </p>
         </div>
 
+        {/* ==================================
+            ADMIN MODULES
+        ================================== */}
+
         <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {/* ARTISTS */}
+
           <Link
             href="/admin/artists"
-            className="border-2 border-black bg-white p-6 hover:bg-black hover:text-white"
+            className="border-2 border-black bg-white p-6 transition-colors hover:bg-black hover:text-white"
           >
             <p className="text-2xl font-black uppercase">
               Artists
@@ -82,9 +125,11 @@ export default async function AdminPage() {
             </p>
           </Link>
 
+          {/* SCENES */}
+
           <Link
             href="/admin/scenes"
-            className="border-2 border-black bg-white p-6 hover:bg-black hover:text-white"
+            className="border-2 border-black bg-white p-6 transition-colors hover:bg-black hover:text-white"
           >
             <p className="text-2xl font-black uppercase">
               Scenes
@@ -95,9 +140,11 @@ export default async function AdminPage() {
             </p>
           </Link>
 
+          {/* GENRES */}
+
           <Link
             href="/admin/genres"
-            className="border-2 border-black bg-white p-6 hover:bg-black hover:text-white"
+            className="border-2 border-black bg-white p-6 transition-colors hover:bg-black hover:text-white"
           >
             <p className="text-2xl font-black uppercase">
               Genres
@@ -105,6 +152,51 @@ export default async function AdminPage() {
 
             <p className="mt-3 text-sm">
               Maintain the atlas genre taxonomy.
+            </p>
+          </Link>
+
+          {/* LOCATIONS */}
+
+          <Link
+            href="/admin/locations"
+            className="border-2 border-black bg-white p-6 transition-colors hover:bg-black hover:text-white"
+          >
+            <p className="text-2xl font-black uppercase">
+              Locations
+            </p>
+
+            <p className="mt-3 text-sm">
+              Manage cities and geographic map locations.
+            </p>
+          </Link>
+
+          {/* VENUES */}
+
+          <Link
+            href="/admin/venues"
+            className="border-2 border-black bg-white p-6 transition-colors hover:bg-black hover:text-white"
+          >
+            <p className="text-2xl font-black uppercase">
+              Venues
+            </p>
+
+            <p className="mt-3 text-sm">
+              Manage venues used by shows and events.
+            </p>
+          </Link>
+
+          {/* EVENTS */}
+
+          <Link
+            href="/admin/events"
+            className="border-2 border-black bg-white p-6 transition-colors hover:bg-black hover:text-white"
+          >
+            <p className="text-2xl font-black uppercase">
+              Events
+            </p>
+
+            <p className="mt-3 text-sm">
+              Manage shows, festivals, and artist lineups.
             </p>
           </Link>
         </div>

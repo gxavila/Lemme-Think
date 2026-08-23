@@ -11,8 +11,43 @@ import mapboxgl, {
 
 import { createClient } from "@/lib/supabase/client";
 
+type MapMode =
+  | "artists"
+  | "events";
+
 type AtlasMapProps = {
+  mode?: MapMode;
+
   selectedGenres?: string[];
+  selectedStatuses?: string[];
+  selectedLocations?: string[];
+
+  eraStarts?: number[];
+  eraEnds?: number[];
+
+  minListeners?: number | null;
+  maxListeners?: number | null;
+
+  eventLocations?: string[];
+  eventGenres?: string[];
+
+  eventStartBefore?:
+    | string
+    | null;
+
+  eventNearLatitude?:
+    | number
+    | null;
+
+  eventNearLongitude?:
+    | number
+    | null;
+
+  eventRadiusMiles?:
+    | number
+    | null;
+
+  nearMeFocusToken?: number;
 };
 
 type ArtistGenre = {
@@ -46,48 +81,83 @@ type MapArtist = {
     | null;
 };
 
-/*
- * Local GeoJSON types.
- *
- * This avoids relying on a global
- * GeoJSON namespace, which is what
- * caused TS2503 during production build.
- */
-type PointGeometry = {
-  type: "Point";
-  coordinates: [
-    number,
-    number,
-  ];
+type EventLineupArtist = {
+  id: string;
+  name: string;
+  slug: string;
+  billing_role?: string | null;
+  billing_order?: number | null;
 };
 
-type PointFeatureProperties =
-  Record<
-    string,
-    string | number | boolean | null
-  >;
+type MapEvent = {
+  id: string;
 
-type PointFeature = {
-  type: "Feature";
-  geometry: PointGeometry;
-  properties: PointFeatureProperties;
+  title: string;
+  slug: string;
+
+  event_type?: string | null;
+  status?: string | null;
+
+  start_at: string;
+  timezone?: string | null;
+
+  ticket_url?: string | null;
+
+  all_ages?: boolean | null;
+  featured?: boolean | null;
+
+  venue_id?: string | null;
+  venue_name?: string | null;
+  venue_slug?: string | null;
+
+  location_id?: string | null;
+  location_name?: string | null;
+  location_slug?: string | null;
+
+  city?: string | null;
+  region?: string | null;
+  country?: string | null;
+
+  latitude?: number | null;
+  longitude?: number | null;
+
+  distance_miles?: number | null;
+
+  lineup?:
+    | EventLineupArtist[]
+    | string
+    | null;
 };
 
 type PointFeatureCollection = {
   type: "FeatureCollection";
-  features: PointFeature[];
+
+  features: Array<{
+    type: "Feature";
+
+    geometry: {
+      type: "Point";
+
+      coordinates: [
+        number,
+        number,
+      ];
+    };
+
+    properties:
+      Record<
+        string,
+        string | number | boolean | null
+      >;
+  }>;
 };
 
-/*
- * Mapbox's rendered feature typing is
- * intentionally broad. We only need
- * Point features from our own layers.
- */
 type RenderedPointFeature = {
   geometry: {
     type: string;
     coordinates?: number[];
   };
+
   properties?:
     | Record<
         string,
@@ -97,16 +167,40 @@ type RenderedPointFeature = {
 };
 
 const SOURCE_ID =
-  "artists";
+  "atlas-points";
 
 const CLUSTER_LAYER_ID =
-  "clusters";
+  "atlas-clusters";
 
 const CLUSTER_COUNT_LAYER_ID =
-  "cluster-count";
+  "atlas-cluster-count";
 
-const ARTIST_LAYER_ID =
-  "unclustered-point";
+const CLUSTER_TOUCH_LAYER_ID =
+  "atlas-cluster-touch-target";
+
+const POINT_LAYER_ID =
+  "atlas-unclustered-point";
+
+const POINT_TOUCH_LAYER_ID =
+  "atlas-point-touch-target";
+
+const USER_SOURCE_ID =
+  "atlas-user-location";
+
+const USER_OUTER_LAYER_ID =
+  "atlas-user-location-outer";
+
+const USER_INNER_LAYER_ID =
+  "atlas-user-location-inner";
+
+const RADIUS_SOURCE_ID =
+  "atlas-search-radius";
+
+const RADIUS_FILL_LAYER_ID =
+  "atlas-search-radius-fill";
+
+const RADIUS_OUTLINE_LAYER_ID =
+  "atlas-search-radius-outline";
 
 const OLD_MAP_STORAGE_KEY =
   "underground-atlas-map-state";
@@ -119,16 +213,30 @@ const DEFAULT_CENTER: [
   36.7783,
 ];
 
-const DEFAULT_ZOOM = 5;
+const DEFAULT_ZOOM =
+  5;
 
-const MIN_LATITUDE = -85;
-const MAX_LATITUDE = 85;
-const MIN_ZOOM = 2;
-const MAX_ZOOM = 18;
+const MIN_LATITUDE =
+  -85;
 
-/* =========================================
-   HELPERS
-========================================= */
+const MAX_LATITUDE =
+  85;
+
+const MIN_ZOOM =
+  2;
+
+const MAX_ZOOM =
+  18;
+
+const OVERLAP_OFFSET =
+  0.0018;
+
+const EARTH_RADIUS_MILES =
+  3958.7613;
+
+// ============================================
+// HELPERS
+// ============================================
 
 function escapeHtml(
   value: unknown
@@ -158,35 +266,48 @@ function escapeHtml(
     );
 }
 
-function getArtistName(
-  artist: MapArtist
+function safeExternalUrl(
+  value: unknown
 ) {
-  return (
-    artist.name ??
-    artist.artist_name ??
-    "Artist"
-  );
-}
+  const raw =
+    String(
+      value ?? ""
+    ).trim();
 
-function getArtistSlug(
-  artist: MapArtist
-) {
-  return (
-    artist.slug ??
-    artist.artist_slug ??
-    ""
-  );
+  if (!raw) {
+    return "";
+  }
+
+  try {
+    const parsed =
+      new URL(
+        raw
+      );
+
+    if (
+      parsed.protocol !==
+        "http:" &&
+      parsed.protocol !==
+        "https:"
+    ) {
+      return "";
+    }
+
+    return escapeHtml(
+      parsed.toString()
+    );
+  } catch {
+    return "";
+  }
 }
 
 function normalizeArtists(
   data: unknown
 ): MapArtist[] {
-  if (!data) {
-    return [];
-  }
-
   if (
-    Array.isArray(data)
+    Array.isArray(
+      data
+    )
   ) {
     return data as MapArtist[];
   }
@@ -214,6 +335,40 @@ function normalizeArtists(
   return [];
 }
 
+function normalizeEvents(
+  data: unknown
+): MapEvent[] {
+  if (
+    Array.isArray(
+      data
+    )
+  ) {
+    return data as MapEvent[];
+  }
+
+  if (
+    typeof data ===
+      "object" &&
+    data !== null &&
+    "events" in data
+  ) {
+    const result =
+      data as {
+        events?: MapEvent[];
+      };
+
+    if (
+      Array.isArray(
+        result.events
+      )
+    ) {
+      return result.events;
+    }
+  }
+
+  return [];
+}
+
 function normalizeGenres(
   value:
     | ArtistGenre[]
@@ -221,12 +376,10 @@ function normalizeGenres(
     | null
     | undefined
 ): ArtistGenre[] {
-  if (!value) {
-    return [];
-  }
-
   if (
-    Array.isArray(value)
+    Array.isArray(
+      value
+    )
   ) {
     return value;
   }
@@ -237,15 +390,53 @@ function normalizeGenres(
   ) {
     try {
       const parsed =
-        JSON.parse(value);
+        JSON.parse(
+          value
+        );
 
-      if (
-        Array.isArray(
-          parsed
-        )
-      ) {
-        return parsed as ArtistGenre[];
-      }
+      return Array.isArray(
+        parsed
+      )
+        ? parsed
+        : [];
+    } catch {
+      return [];
+    }
+  }
+
+  return [];
+}
+
+function normalizeLineup(
+  value:
+    | EventLineupArtist[]
+    | string
+    | null
+    | undefined
+): EventLineupArtist[] {
+  if (
+    Array.isArray(
+      value
+    )
+  ) {
+    return value;
+  }
+
+  if (
+    typeof value ===
+    "string"
+  ) {
+    try {
+      const parsed =
+        JSON.parse(
+          value
+        );
+
+      return Array.isArray(
+        parsed
+      )
+        ? parsed
+        : [];
     } catch {
       return [];
     }
@@ -255,12 +446,12 @@ function normalizeGenres(
 }
 
 function isValidLatitude(
-  value: unknown
-): value is number {
+  value: number
+) {
   return (
-    typeof value ===
-      "number" &&
-    Number.isFinite(value) &&
+    Number.isFinite(
+      value
+    ) &&
     value >=
       MIN_LATITUDE &&
     value <=
@@ -269,51 +460,438 @@ function isValidLatitude(
 }
 
 function isValidLongitude(
-  value: unknown
-): value is number {
-  return (
-    typeof value ===
-      "number" &&
-    Number.isFinite(value) &&
-    value >= -180 &&
-    value <= 180
-  );
-}
-
-function clampZoom(
   value: number
 ) {
-  return Math.max(
-    MIN_ZOOM,
-    Math.min(
-      MAX_ZOOM,
+  return (
+    Number.isFinite(
       value
-    )
+    ) &&
+    value >=
+      -180 &&
+    value <=
+      180
   );
 }
 
-/* =========================================
-   GEOJSON
-========================================= */
+function formatEventDate(
+  value: string,
+  timeZone: string
+) {
+  try {
+    return new Intl.DateTimeFormat(
+      "en-US",
+      {
+        timeZone,
+        weekday:
+          "short",
+        month:
+          "short",
+        day:
+          "numeric",
+        year:
+          "numeric",
+        hour:
+          "numeric",
+        minute:
+          "2-digit",
+      }
+    ).format(
+      new Date(
+        value
+      )
+    );
+  } catch {
+    return new Date(
+      value
+    ).toLocaleString(
+      "en-US"
+    );
+  }
+}
 
-function buildGeoJson(
+function formatEventType(
+  value: string
+) {
+  return value
+    .replaceAll(
+      "_",
+      " "
+    )
+    .replace(
+      /\b\w/g,
+      (
+        letter
+      ) =>
+        letter.toUpperCase()
+    );
+}
+
+function formatDistance(
+  value: unknown
+) {
+  if (
+    value ===
+      null ||
+    value ===
+      undefined ||
+    value ===
+      ""
+  ) {
+    return "";
+  }
+
+  const distance =
+    Number(
+      value
+    );
+
+  if (
+    !Number.isFinite(
+      distance
+    )
+  ) {
+    return "";
+  }
+
+  if (
+    distance <
+    0.1
+  ) {
+    return "< 0.1 mile away";
+  }
+
+  if (
+    distance <
+    10
+  ) {
+    return `${distance.toFixed(
+      1
+    )} ${
+      distance ===
+      1
+        ? "mile"
+        : "miles"
+    } away`;
+  }
+
+  const rounded =
+    Math.round(
+      distance
+    );
+
+  return `${rounded} ${
+    rounded ===
+    1
+      ? "mile"
+      : "miles"
+  } away`;
+}
+
+// ============================================
+// RADIUS GEOGRAPHY
+// ============================================
+
+function destinationPoint(
+  latitude: number,
+  longitude: number,
+  distanceMiles: number,
+  bearingDegrees: number
+): [
+  number,
+  number,
+] {
+  const angularDistance =
+    distanceMiles /
+    EARTH_RADIUS_MILES;
+
+  const bearing =
+    bearingDegrees *
+    Math.PI /
+    180;
+
+  const latitude1 =
+    latitude *
+    Math.PI /
+    180;
+
+  const longitude1 =
+    longitude *
+    Math.PI /
+    180;
+
+  const latitude2 =
+    Math.asin(
+      Math.sin(
+        latitude1
+      ) *
+        Math.cos(
+          angularDistance
+        ) +
+        Math.cos(
+          latitude1
+        ) *
+          Math.sin(
+            angularDistance
+          ) *
+          Math.cos(
+            bearing
+          )
+    );
+
+  const longitude2 =
+    longitude1 +
+    Math.atan2(
+      Math.sin(
+        bearing
+      ) *
+        Math.sin(
+          angularDistance
+        ) *
+        Math.cos(
+          latitude1
+        ),
+      Math.cos(
+        angularDistance
+      ) -
+        Math.sin(
+          latitude1
+        ) *
+          Math.sin(
+            latitude2
+          )
+    );
+
+  let longitudeDegrees =
+    longitude2 *
+    180 /
+    Math.PI;
+
+  longitudeDegrees =
+    (
+      (
+        longitudeDegrees +
+        540
+      ) %
+        360
+    ) -
+    180;
+
+  return [
+    longitudeDegrees,
+    latitude2 *
+      180 /
+      Math.PI,
+  ];
+}
+
+function buildRadiusGeoJson(
+  latitude: number | null,
+  longitude: number | null,
+  radiusMiles: number | null
+) {
+  if (
+    latitude ===
+      null ||
+    longitude ===
+      null ||
+    radiusMiles ===
+      null
+  ) {
+    return {
+      type:
+        "FeatureCollection",
+      features:
+        [],
+    };
+  }
+
+  const coordinates: Array<
+    [
+      number,
+      number,
+    ]
+  > = [];
+
+  const segments =
+    96;
+
+  for (
+    let index = 0;
+    index <=
+    segments;
+    index += 1
+  ) {
+    coordinates.push(
+      destinationPoint(
+        latitude,
+        longitude,
+        radiusMiles,
+        (
+          index /
+          segments
+        ) *
+          360
+      )
+    );
+  }
+
+  return {
+    type:
+      "FeatureCollection",
+
+    features: [
+      {
+        type:
+          "Feature",
+
+        properties: {},
+
+        geometry: {
+          type:
+            "Polygon",
+
+          coordinates: [
+            coordinates,
+          ],
+        },
+      },
+    ],
+  };
+}
+
+function getRadiusBounds(
+  latitude: number,
+  longitude: number,
+  radiusMiles: number
+) {
+  const north =
+    destinationPoint(
+      latitude,
+      longitude,
+      radiusMiles,
+      0
+    );
+
+  const east =
+    destinationPoint(
+      latitude,
+      longitude,
+      radiusMiles,
+      90
+    );
+
+  const south =
+    destinationPoint(
+      latitude,
+      longitude,
+      radiusMiles,
+      180
+    );
+
+  const west =
+    destinationPoint(
+      latitude,
+      longitude,
+      radiusMiles,
+      270
+    );
+
+  return new mapboxgl.LngLatBounds(
+    [
+      west[0],
+      south[1],
+    ],
+    [
+      east[0],
+      north[1],
+    ]
+  );
+}
+
+// ============================================
+// OVERLAPPING POINTS
+// ============================================
+
+function offsetCoordinate(
+  latitude: number,
+  longitude: number,
+  index: number,
+  total: number
+): [
+  number,
+  number,
+] {
+  if (
+    total <=
+    1
+  ) {
+    return [
+      longitude,
+      latitude,
+    ];
+  }
+
+  const angle =
+    (
+      2 *
+      Math.PI *
+      index
+    ) /
+    total;
+
+  const adjustedLatitude =
+    latitude +
+    Math.sin(
+      angle
+    ) *
+      OVERLAP_OFFSET;
+
+  const latitudeRadians =
+    latitude *
+    Math.PI /
+    180;
+
+  const longitudeScale =
+    Math.max(
+      Math.cos(
+        latitudeRadians
+      ),
+      0.2
+    );
+
+  const adjustedLongitude =
+    longitude +
+    (
+      Math.cos(
+        angle
+      ) *
+      OVERLAP_OFFSET
+    ) /
+      longitudeScale;
+
+  return [
+    adjustedLongitude,
+    adjustedLatitude,
+  ];
+}
+
+// ============================================
+// ARTIST GEOJSON
+// ============================================
+
+function buildArtistGeoJson(
   artists: MapArtist[]
 ): PointFeatureCollection {
-  /*
-   * Artists can share the exact same
-   * city-level coordinates.
-   *
-   * Group them so their map markers can
-   * receive a small display-only offset.
-   */
-  const coordinateGroups =
+  const groups =
     new Map<
       string,
       MapArtist[]
     >();
 
   artists.forEach(
-    (artist) => {
+    (
+      artist
+    ) => {
       if (
         artist.latitude ==
           null ||
@@ -341,22 +919,6 @@ function buildGeoJson(
           longitude
         )
       ) {
-        console.warn(
-          "Skipping artist with invalid map coordinates:",
-          {
-            id:
-              artist.id,
-
-            name:
-              getArtistName(
-                artist
-              ),
-
-            latitude,
-            longitude,
-          }
-        );
-
         return;
       }
 
@@ -368,7 +930,7 @@ function buildGeoJson(
         )}`;
 
       const group =
-        coordinateGroups.get(
+        groups.get(
           key
         ) ?? [];
 
@@ -376,120 +938,69 @@ function buildGeoJson(
         artist
       );
 
-      coordinateGroups.set(
+      groups.set(
         key,
         group
       );
     }
   );
 
-  const features: PointFeature[] =
+  const features:
+    PointFeatureCollection["features"] =
     [];
 
-  coordinateGroups.forEach(
+  groups.forEach(
     (
-      group,
-      coordinateKey
+      group
     ) => {
-      const [
-        latitudeText,
-        longitudeText,
-      ] =
-        coordinateKey.split(
-          ","
+      const sorted =
+        [
+          ...group,
+        ].sort(
+          (
+            a,
+            b
+          ) => {
+            const aName =
+              a.name ??
+              a.artist_name ??
+              "";
+
+            const bName =
+              b.name ??
+              b.artist_name ??
+              "";
+
+            return aName.localeCompare(
+              bName
+            );
+          }
         );
 
-      const baseLatitude =
-        Number(
-          latitudeText
-        );
-
-      const baseLongitude =
-        Number(
-          longitudeText
-        );
-
-      /*
-       * Deterministic ordering prevents
-       * marker positions from changing
-       * between data reloads.
-       */
-      const sortedGroup = [
-        ...group,
-      ].sort(
-        (a, b) =>
-          getArtistName(
-            a
-          ).localeCompare(
-            getArtistName(
-              b
-            )
-          )
-      );
-
-      sortedGroup.forEach(
+      sorted.forEach(
         (
           artist,
           index
         ) => {
-          let latitude =
-            baseLatitude;
+          const latitude =
+            Number(
+              artist.latitude
+            );
 
-          let longitude =
-            baseLongitude;
+          const longitude =
+            Number(
+              artist.longitude
+            );
 
-          if (
-            sortedGroup.length >
-            1
-          ) {
-            const angle =
-              (2 *
-                Math.PI *
-                index) /
-              sortedGroup.length;
-
-            /*
-             * Small visual offset around
-             * the real city-level point.
-             *
-             * Database coordinates are not
-             * changed.
-             */
-            const offset =
-              0.0018;
-
-            latitude =
-              baseLatitude +
-              Math.sin(
-                angle
-              ) *
-                offset;
-
-            const latitudeRadians =
-              (baseLatitude *
-                Math.PI) /
-              180;
-
-            const longitudeScale =
-              Math.max(
-                Math.cos(
-                  latitudeRadians
-                ),
-                0.2
-              );
-
-            longitude =
-              baseLongitude +
-              (Math.cos(
-                angle
-              ) *
-                offset) /
-                longitudeScale;
-          }
-
-          const genres =
-            normalizeGenres(
-              artist.genres
+          const [
+            adjustedLongitude,
+            adjustedLatitude,
+          ] =
+            offsetCoordinate(
+              latitude,
+              longitude,
+              index,
+              sorted.length
             );
 
           features.push({
@@ -501,24 +1012,27 @@ function buildGeoJson(
                 "Point",
 
               coordinates: [
-                longitude,
-                latitude,
+                adjustedLongitude,
+                adjustedLatitude,
               ],
             },
 
             properties: {
+              kind:
+                "artist",
+
               id:
                 artist.id,
 
               name:
-                getArtistName(
-                  artist
-                ),
+                artist.name ??
+                artist.artist_name ??
+                "Artist",
 
               slug:
-                getArtistSlug(
-                  artist
-                ),
+                artist.slug ??
+                artist.artist_slug ??
+                "",
 
               city:
                 artist.city ??
@@ -538,14 +1052,10 @@ function buildGeoJson(
 
               genres:
                 JSON.stringify(
-                  genres
+                  normalizeGenres(
+                    artist.genres
+                  )
                 ),
-
-              location_latitude:
-                baseLatitude,
-
-              location_longitude:
-                baseLongitude,
             },
           });
         }
@@ -561,18 +1071,245 @@ function buildGeoJson(
   };
 }
 
-/* =========================================
-   POPUP
-========================================= */
+// ============================================
+// EVENT GEOJSON
+// ============================================
 
-function buildPopup(
+function buildEventGeoJson(
+  events: MapEvent[]
+): PointFeatureCollection {
+  const groups =
+    new Map<
+      string,
+      MapEvent[]
+    >();
+
+  events.forEach(
+    (
+      event
+    ) => {
+      if (
+        event.latitude ==
+          null ||
+        event.longitude ==
+          null
+      ) {
+        return;
+      }
+
+      const latitude =
+        Number(
+          event.latitude
+        );
+
+      const longitude =
+        Number(
+          event.longitude
+        );
+
+      if (
+        !isValidLatitude(
+          latitude
+        ) ||
+        !isValidLongitude(
+          longitude
+        )
+      ) {
+        return;
+      }
+
+      const key =
+        `${latitude.toFixed(
+          6
+        )},${longitude.toFixed(
+          6
+        )}`;
+
+      const group =
+        groups.get(
+          key
+        ) ?? [];
+
+      group.push(
+        event
+      );
+
+      groups.set(
+        key,
+        group
+      );
+    }
+  );
+
+  const features:
+    PointFeatureCollection["features"] =
+    [];
+
+  groups.forEach(
+    (
+      group
+    ) => {
+      const sorted =
+        [
+          ...group,
+        ].sort(
+          (
+            a,
+            b
+          ) => {
+            const timeDifference =
+              new Date(
+                a.start_at
+              ).getTime() -
+              new Date(
+                b.start_at
+              ).getTime();
+
+            if (
+              timeDifference !==
+              0
+            ) {
+              return timeDifference;
+            }
+
+            return a.title.localeCompare(
+              b.title
+            );
+          }
+        );
+
+      sorted.forEach(
+        (
+          event,
+          index
+        ) => {
+          const latitude =
+            Number(
+              event.latitude
+            );
+
+          const longitude =
+            Number(
+              event.longitude
+            );
+
+          const [
+            adjustedLongitude,
+            adjustedLatitude,
+          ] =
+            offsetCoordinate(
+              latitude,
+              longitude,
+              index,
+              sorted.length
+            );
+
+          features.push({
+            type:
+              "Feature",
+
+            geometry: {
+              type:
+                "Point",
+
+              coordinates: [
+                adjustedLongitude,
+                adjustedLatitude,
+              ],
+            },
+
+            properties: {
+              kind:
+                "event",
+
+              id:
+                event.id,
+
+              title:
+                event.title,
+
+              slug:
+                event.slug,
+
+              event_type:
+                event.event_type ??
+                "concert",
+
+              status:
+                event.status ??
+                "scheduled",
+
+              start_at:
+                event.start_at,
+
+              timezone:
+                event.timezone ??
+                "America/Los_Angeles",
+
+              ticket_url:
+                event.ticket_url ??
+                "",
+
+              venue_name:
+                event.venue_name ??
+                "",
+
+              venue_slug:
+                event.venue_slug ??
+                "",
+
+              location_name:
+                event.location_name ??
+                "",
+
+              city:
+                event.city ??
+                "",
+
+              region:
+                event.region ??
+                "",
+
+              country:
+                event.country ??
+                "",
+
+              distance_miles:
+                event.distance_miles ??
+                null,
+
+              lineup:
+                JSON.stringify(
+                  normalizeLineup(
+                    event.lineup
+                  )
+                ),
+            },
+          });
+        }
+      );
+    }
+  );
+
+  return {
+    type:
+      "FeatureCollection",
+
+    features,
+  };
+}
+
+// ============================================
+// ARTIST POPUP
+// ============================================
+
+function buildArtistPopup(
   properties:
     | Record<
         string,
         unknown
       >
     | null
-    | undefined
 ) {
   if (!properties) {
     return "";
@@ -587,30 +1324,36 @@ function buildPopup(
     encodeURIComponent(
       String(
         properties.slug ??
-          ""
+        ""
       )
     );
 
-  const city =
-    properties.city
-      ? escapeHtml(
-          properties.city
-        )
-      : "";
+  const location =
+    [
+      properties.city,
+      properties.region,
+    ]
+      .filter(
+        Boolean
+      )
+      .map(
+        escapeHtml
+      )
+      .join(
+        ", "
+      );
 
-  const region =
-    properties.region
-      ? escapeHtml(
-          properties.region
-        )
-      : "";
-
-  const location = [
-    city,
-    region,
-  ]
-    .filter(Boolean)
-    .join(", ");
+  const genres =
+    normalizeGenres(
+      properties.genres as
+        | ArtistGenre[]
+        | string
+        | null
+        | undefined
+    ).slice(
+      0,
+      3
+    );
 
   const bio =
     properties.bio_short
@@ -619,31 +1362,21 @@ function buildPopup(
         )
       : "";
 
-  const genres =
-    normalizeGenres(
-      properties.genres as
-        | string
-        | ArtistGenre[]
-        | null
-        | undefined
-    ).slice(0, 3);
-
   return `
     <div style="
-      min-width: 230px;
-      max-width: 280px;
-      font-family: Arial, Helvetica, sans-serif;
+      width:260px;
+      max-width:100%;
+      font-family:Arial,Helvetica,sans-serif;
     ">
       ${
         location
           ? `
             <div style="
-              margin-bottom: 7px;
-              font-size: 10px;
-              font-weight: 700;
-              letter-spacing: 0.09em;
-              text-transform: uppercase;
-              color: #666;
+              margin-bottom:7px;
+              font-size:10px;
+              font-weight:700;
+              text-transform:uppercase;
+              color:#666;
             ">
               ${location}
             </div>
@@ -652,10 +1385,10 @@ function buildPopup(
       }
 
       <div style="
-        font-size: 20px;
-        line-height: 1.05;
-        font-weight: 800;
-        color: #111;
+        font-size:20px;
+        line-height:1.05;
+        font-weight:800;
+        color:#111;
       ">
         ${name}
       </div>
@@ -664,10 +1397,10 @@ function buildPopup(
         genres.length
           ? `
             <div style="
-              display: flex;
-              flex-wrap: wrap;
-              gap: 5px;
-              margin-top: 10px;
+              display:flex;
+              flex-wrap:wrap;
+              gap:5px;
+              margin-top:10px;
             ">
               ${genres
                 .map(
@@ -675,24 +1408,11 @@ function buildPopup(
                     genre
                   ) => `
                     <span style="
-                      display: inline-block;
-                      border: 1px solid #111;
-                      padding: 3px 5px;
-                      font-size: 9px;
-                      font-weight: 800;
-                      line-height: 1;
-                      letter-spacing: 0.05em;
-                      text-transform: uppercase;
-                      background: ${
-                        genre.is_primary
-                          ? "#111"
-                          : "#fff"
-                      };
-                      color: ${
-                        genre.is_primary
-                          ? "#fff"
-                          : "#111"
-                      };
+                      border:1px solid #111;
+                      padding:3px 5px;
+                      font-size:9px;
+                      font-weight:800;
+                      text-transform:uppercase;
                     ">
                       ${escapeHtml(
                         genre.name
@@ -710,10 +1430,10 @@ function buildPopup(
         bio
           ? `
             <div style="
-              margin-top: 11px;
-              font-size: 12px;
-              line-height: 1.5;
-              color: #555;
+              margin-top:11px;
+              font-size:12px;
+              line-height:1.5;
+              color:#555;
             ">
               ${bio}
             </div>
@@ -725,19 +1445,18 @@ function buildPopup(
         slug
           ? `
             <div style="
-              margin-top: 14px;
-              padding-top: 10px;
-              border-top: 1px solid #111;
+              margin-top:14px;
+              padding-top:10px;
+              border-top:1px solid #111;
             ">
               <a
                 href="/artists/${slug}"
                 style="
-                  color: #111;
-                  font-size: 10px;
-                  font-weight: 800;
-                  letter-spacing: 0.08em;
-                  text-decoration: none;
-                  text-transform: uppercase;
+                  color:#111;
+                  font-size:10px;
+                  font-weight:800;
+                  text-decoration:none;
+                  text-transform:uppercase;
                 "
               >
                 Explore Artist →
@@ -750,12 +1469,366 @@ function buildPopup(
   `;
 }
 
-/* =========================================
-   COMPONENT
-========================================= */
+// ============================================
+// EVENT POPUP
+// ============================================
+
+function buildEventPopup(
+  properties:
+    | Record<
+        string,
+        unknown
+      >
+    | null
+) {
+  if (!properties) {
+    return "";
+  }
+
+  const title =
+    escapeHtml(
+      properties.title
+    );
+
+  const eventSlug =
+    encodeURIComponent(
+      String(
+        properties.slug ??
+        ""
+      )
+    );
+
+  const venueName =
+    properties.venue_name
+      ? escapeHtml(
+          properties.venue_name
+        )
+      : "";
+
+  const venueSlug =
+    encodeURIComponent(
+      String(
+        properties.venue_slug ??
+        ""
+      )
+    );
+
+  const location =
+    [
+      properties.city,
+      properties.region,
+    ]
+      .filter(
+        Boolean
+      )
+      .map(
+        escapeHtml
+      )
+      .join(
+        ", "
+      );
+
+  const startAt =
+    String(
+      properties.start_at ??
+      ""
+    );
+
+  const timeZone =
+    String(
+      properties.timezone ??
+      "America/Los_Angeles"
+    );
+
+  const dateLabel =
+    startAt
+      ? escapeHtml(
+          formatEventDate(
+            startAt,
+            timeZone
+          )
+        )
+      : "";
+
+  const eventType =
+    escapeHtml(
+      formatEventType(
+        String(
+          properties.event_type ??
+          "concert"
+        )
+      )
+    );
+
+  const distance =
+    formatDistance(
+      properties.distance_miles
+    );
+
+  const lineup =
+    normalizeLineup(
+      properties.lineup as
+        | EventLineupArtist[]
+        | string
+        | null
+        | undefined
+    )
+      .sort(
+        (
+          a,
+          b
+        ) =>
+          (
+            a.billing_order ??
+            0
+          ) -
+          (
+            b.billing_order ??
+            0
+          )
+      )
+      .slice(
+        0,
+        4
+      );
+
+  const ticketUrl =
+    safeExternalUrl(
+      properties.ticket_url
+    );
+
+return `
+    <div style="
+      width:280px;
+      max-width:100%;
+      font-family:Arial,Helvetica,sans-serif;
+    ">
+      <div style="
+        margin-bottom:8px;
+        font-size:9px;
+        font-weight:800;
+        text-transform:uppercase;
+      ">
+        ${eventType}
+      </div>
+
+      ${
+        dateLabel
+          ? `
+            <div style="
+              margin-bottom:7px;
+              font-size:11px;
+              font-weight:800;
+              text-transform:uppercase;
+              color:#555;
+            ">
+              ${dateLabel}
+            </div>
+          `
+          : ""
+      }
+
+      <div style="
+        font-size:20px;
+        line-height:1.05;
+        font-weight:800;
+        text-transform:uppercase;
+        color:#111;
+      ">
+        ${title}
+      </div>
+
+      ${
+        venueName
+          ? venueSlug
+            ? `
+              <div style="
+                margin-top:10px;
+              ">
+                <a
+                  href="/venues/${venueSlug}"
+                  style="
+                    color:#111;
+                    font-size:12px;
+                    font-weight:800;
+                    text-decoration:none;
+                    text-transform:uppercase;
+                  "
+                >
+                  ${venueName} →
+                </a>
+              </div>
+            `
+            : `
+              <div style="
+                margin-top:10px;
+                font-size:12px;
+                font-weight:800;
+                text-transform:uppercase;
+              ">
+                ${venueName}
+              </div>
+            `
+          : ""
+      }
+
+      ${
+        location
+          ? `
+            <div style="
+              margin-top:3px;
+              font-size:11px;
+              font-weight:700;
+              color:#666;
+            ">
+              ${location}
+            </div>
+          `
+          : ""
+      }
+
+      ${
+        distance
+          ? `
+            <div style="
+              margin-top:6px;
+              font-size:10px;
+              font-weight:800;
+              text-transform:uppercase;
+            ">
+              ${escapeHtml(
+                distance
+              )}
+            </div>
+          `
+          : ""
+      }
+
+      ${
+        lineup.length
+          ? `
+            <div style="
+              margin-top:12px;
+              padding-top:10px;
+              border-top:1px solid #ccc;
+            ">
+              <div style="
+                margin-bottom:6px;
+                font-size:9px;
+                font-weight:800;
+                text-transform:uppercase;
+                color:#777;
+              ">
+                Lineup
+              </div>
+
+              <div style="
+                font-size:11px;
+                font-weight:700;
+                line-height:1.5;
+              ">
+                ${lineup
+                  .map(
+                    (
+                      artist
+                    ) =>
+                      escapeHtml(
+                        artist.name
+                      )
+                  )
+                  .join(
+                    " · "
+                  )}
+              </div>
+            </div>
+          `
+          : ""
+      }
+
+      <div style="
+        display:flex;
+        flex-wrap:wrap;
+        gap:8px;
+        margin-top:14px;
+        padding-top:10px;
+        border-top:1px solid #111;
+      ">
+        ${
+          eventSlug
+            ? `
+              <a
+                href="/events/${eventSlug}"
+                style="
+                  border:1px solid #111;
+                  padding:7px 9px;
+                  color:#111;
+                  font-size:9px;
+                  font-weight:800;
+                  text-decoration:none;
+                  text-transform:uppercase;
+                "
+              >
+                View Event →
+              </a>
+            `
+            : ""
+        }
+
+        ${
+          ticketUrl
+            ? `
+              <a
+                href="${ticketUrl}"
+                target="_blank"
+                rel="noopener noreferrer"
+                style="
+                  border:1px solid #111;
+                  background:#111;
+                  padding:7px 9px;
+                  color:#fff;
+                  font-size:9px;
+                  font-weight:800;
+                  text-decoration:none;
+                  text-transform:uppercase;
+                "
+              >
+                Tickets ↗
+              </a>
+            `
+            : ""
+        }
+      </div>
+    </div>
+  `;
+}
+
+// ============================================
+// COMPONENT
+// ============================================
 
 export default function AtlasMap({
+  mode = "artists",
+
   selectedGenres = [],
+  selectedStatuses = [],
+  selectedLocations = [],
+
+  eraStarts = [],
+  eraEnds = [],
+
+  minListeners = null,
+  maxListeners = null,
+
+  eventLocations = [],
+  eventGenres = [],
+
+  eventStartBefore = null,
+
+  eventNearLatitude = null,
+  eventNearLongitude = null,
+  eventRadiusMiles = null,
+
+  nearMeFocusToken = 0,
 }: AtlasMapProps) {
   const containerRef =
     useRef<HTMLDivElement | null>(
@@ -782,9 +1855,82 @@ export default function AtlasMap({
       null
     );
 
+  const modeRef =
+    useRef<MapMode>(
+      mode
+    );
+
   const genresRef =
-    useRef<string[]>(
+    useRef(
       selectedGenres
+    );
+
+  const statusesRef =
+    useRef(
+      selectedStatuses
+    );
+
+  const locationsRef =
+    useRef(
+      selectedLocations
+    );
+
+  const eraStartsRef =
+    useRef(
+      eraStarts
+    );
+
+  const eraEndsRef =
+    useRef(
+      eraEnds
+    );
+
+  const minListenersRef =
+    useRef(
+      minListeners
+    );
+
+  const maxListenersRef =
+    useRef(
+      maxListeners
+    );
+
+  const eventLocationsRef =
+    useRef(
+      eventLocations
+    );
+
+  const eventGenresRef =
+    useRef(
+      eventGenres
+    );
+
+  const eventStartBeforeRef =
+    useRef<
+      string | null
+    >(
+      eventStartBefore
+    );
+
+  const nearLatitudeRef =
+    useRef<
+      number | null
+    >(
+      eventNearLatitude
+    );
+
+  const nearLongitudeRef =
+    useRef<
+      number | null
+    >(
+      eventNearLongitude
+    );
+
+  const radiusRef =
+    useRef<
+      number | null
+    >(
+      eventRadiusMiles
     );
 
   const supabaseRef =
@@ -792,21 +1938,136 @@ export default function AtlasMap({
       createClient()
     );
 
-  /* =========================================
-     LOAD ARTISTS
-  ========================================= */
+  const requestSequenceRef =
+    useRef(0);
 
-  async function loadArtists(
-    targetMap?: mapboxgl.Map
+  // ============================================
+  // POINT STYLE
+  // ============================================
+
+  function updatePointStyle(
+    map: mapboxgl.Map
   ) {
-    const map =
-      targetMap ??
-      mapRef.current;
-
-    if (!map) {
+    if (
+      !map.getLayer(
+        POINT_LAYER_ID
+      )
+    ) {
       return;
     }
 
+    const events =
+      modeRef.current ===
+      "events";
+
+    map.setPaintProperty(
+      POINT_LAYER_ID,
+      "circle-radius",
+      events
+        ? 9
+        : 7
+    );
+
+    map.setPaintProperty(
+      POINT_LAYER_ID,
+      "circle-color",
+      events
+        ? "#ffffff"
+        : "#111111"
+    );
+
+    map.setPaintProperty(
+      POINT_LAYER_ID,
+      "circle-stroke-color",
+      events
+        ? "#111111"
+        : "#ffffff"
+    );
+
+    map.setPaintProperty(
+      POINT_LAYER_ID,
+      "circle-stroke-width",
+      events
+        ? 3
+        : 2
+    );
+  }
+
+  // ============================================
+  // USER LOCATION + RADIUS
+  // ============================================
+
+  function updateLocationLayers(
+    map: mapboxgl.Map
+  ) {
+    const userSource =
+      map.getSource(
+        USER_SOURCE_ID
+      ) as
+        | GeoJSONSource
+        | undefined;
+
+    if (
+      userSource
+    ) {
+      userSource.setData({
+        type:
+          "FeatureCollection",
+
+        features:
+          nearLatitudeRef.current !==
+            null &&
+          nearLongitudeRef.current !==
+            null
+            ? [
+                {
+                  type:
+                    "Feature",
+
+                  properties: {},
+
+                  geometry: {
+                    type:
+                      "Point",
+
+                    coordinates: [
+                      nearLongitudeRef.current,
+                      nearLatitudeRef.current,
+                    ],
+                  },
+                },
+              ]
+            : [],
+      } as any);
+    }
+
+    const radiusSource =
+      map.getSource(
+        RADIUS_SOURCE_ID
+      ) as
+        | GeoJSONSource
+        | undefined;
+
+    if (
+      radiusSource
+    ) {
+      radiusSource.setData(
+        buildRadiusGeoJson(
+          nearLatitudeRef.current,
+          nearLongitudeRef.current,
+          radiusRef.current
+        ) as any
+      );
+    }
+  }
+
+  // ============================================
+  // LOAD DATA
+  // ============================================
+
+  async function loadData(
+    map: mapboxgl.Map
+  ) {
     const source =
       map.getSource(
         SOURCE_ID
@@ -818,14 +2079,15 @@ export default function AtlasMap({
       return;
     }
 
+    const requestId =
+      ++requestSequenceRef.current;
+
+    const requestedMode =
+      modeRef.current;
+
     const bounds =
       map.getBounds();
 
-    /*
-     * Mapbox typings allow getBounds()
-     * to return null in some lifecycle
-     * states.
-     */
     if (!bounds) {
       return;
     }
@@ -856,8 +2118,94 @@ export default function AtlasMap({
         north
       )
     ) {
-      console.warn(
-        "Skipping artist query because map bounds are invalid."
+      return;
+    }
+
+    if (
+      requestedMode ===
+      "events"
+    ) {
+      const {
+        data,
+        error,
+      } =
+        await supabaseRef.current.rpc(
+          "get_events_in_map_bounds",
+          {
+            min_long:
+              west,
+
+            min_lat:
+              south,
+
+            max_long:
+              east,
+
+            max_lat:
+              north,
+
+            location_slugs:
+              eventLocationsRef.current.length
+                ? eventLocationsRef.current
+                : null,
+
+            event_genre_slugs:
+              eventGenresRef.current.length
+                ? eventGenresRef.current
+                : null,
+
+            start_before:
+              eventStartBeforeRef.current,
+
+            near_lat:
+              nearLatitudeRef.current,
+
+            near_long:
+              nearLongitudeRef.current,
+
+            radius_miles:
+              radiusRef.current,
+          }
+        );
+
+      if (
+        error
+      ) {
+        console.error(
+          "Map event query failed:",
+          {
+            message:
+              error.message,
+
+            details:
+              error.details,
+
+            hint:
+              error.hint,
+
+            code:
+              error.code,
+          }
+        );
+
+        return;
+      }
+
+      if (
+        requestId !==
+          requestSequenceRef.current ||
+        modeRef.current !==
+          requestedMode
+      ) {
+        return;
+      }
+
+      source.setData(
+        buildEventGeoJson(
+          normalizeEvents(
+            data
+          )
+        ) as any
       );
 
       return;
@@ -888,17 +2236,36 @@ export default function AtlasMap({
               : null,
 
           artist_statuses:
-            null,
+            statusesRef.current.length
+              ? statusesRef.current
+              : null,
+
+          location_slugs:
+            locationsRef.current.length
+              ? locationsRef.current
+              : null,
+
+          era_starts:
+            eraStartsRef.current.length
+              ? eraStartsRef.current
+              : null,
+
+          era_ends:
+            eraEndsRef.current.length
+              ? eraEndsRef.current
+              : null,
 
           min_listeners:
-            null,
+            minListenersRef.current,
 
           max_listeners:
-            null,
+            maxListenersRef.current,
         }
       );
 
-    if (error) {
+    if (
+      error
+    ) {
       console.error(
         "Map artist query failed:",
         {
@@ -919,242 +2286,966 @@ export default function AtlasMap({
       return;
     }
 
-    const artists =
-      normalizeArtists(
-        data
-      );
-
-    const geoJson =
-      buildGeoJson(
-        artists
-      );
-
-    /*
-     * Re-fetch the source because the
-     * component could have unmounted
-     * while awaiting Supabase.
-     */
-    const currentSource =
-      map.getSource(
-        SOURCE_ID
-      ) as
-        | GeoJSONSource
-        | undefined;
-
     if (
-      currentSource
+      requestId !==
+        requestSequenceRef.current ||
+      modeRef.current !==
+        requestedMode
     ) {
-      /*
-       * The object is structurally valid
-       * GeoJSON. "any" is used here only
-       * because this project does not have
-       * the standalone @types/geojson
-       * namespace installed.
-       */
-      currentSource.setData(
-        geoJson as any
-      );
+      return;
     }
+
+    source.setData(
+      buildArtistGeoJson(
+        normalizeArtists(
+          data
+        )
+      ) as any
+    );
   }
 
-  /* =========================================
-     GENRE FILTER CHANGES
-  ========================================= */
+  // ============================================
+  // PROP CHANGES
+  // ============================================
 
-  useEffect(() => {
-    genresRef.current =
-      selectedGenres;
+  useEffect(
+    () => {
+      const previousMode =
+        modeRef.current;
 
-    const map =
-      mapRef.current;
+      modeRef.current =
+        mode;
 
-    if (!map) {
-      return;
-    }
+      genresRef.current =
+        selectedGenres;
 
-    popupRef.current?.remove();
+      statusesRef.current =
+        selectedStatuses;
 
-    if (
-      map.getSource(
-        SOURCE_ID
-      )
-    ) {
-      void loadArtists(
+      locationsRef.current =
+        selectedLocations;
+
+      eraStartsRef.current =
+        eraStarts;
+
+      eraEndsRef.current =
+        eraEnds;
+
+      minListenersRef.current =
+        minListeners;
+
+      maxListenersRef.current =
+        maxListeners;
+
+      eventLocationsRef.current =
+        eventLocations;
+
+      eventGenresRef.current =
+        eventGenres;
+
+      eventStartBeforeRef.current =
+        eventStartBefore;
+
+      nearLatitudeRef.current =
+        eventNearLatitude;
+
+      nearLongitudeRef.current =
+        eventNearLongitude;
+
+      radiusRef.current =
+        eventRadiusMiles;
+
+      const map =
+        mapRef.current;
+
+      if (!map) {
+        return;
+      }
+
+      popupRef.current?.remove();
+
+      updatePointStyle(
         map
       );
-    }
-  }, [selectedGenres]);
 
-  /* =========================================
-     MAP INITIALIZATION
-  ========================================= */
-
-  useEffect(() => {
-    /*
-     * Narrow this once and retain the
-     * non-null reference throughout
-     * the effect.
-     */
-  const mapContainer =
-  containerRef.current as HTMLDivElement;
-
-if (
-  !mapContainer ||
-  mapRef.current
-) {
-  return;
-}
-
-    /*
-     * Remove the old camera-state behavior.
-     */
-    try {
-      window.sessionStorage.removeItem(
-        OLD_MAP_STORAGE_KEY
-      );
-    } catch {
-      // Ignore storage failures.
-    }
-
-    /*
-     * Remove legacy lat/lng/zoom query
-     * parameters while preserving genres
-     * or other future query parameters.
-     */
-    const currentUrl =
-      new URL(
-        window.location.href
+      updateLocationLayers(
+        map
       );
 
-    const hadCameraParams =
-      currentUrl.searchParams.has(
-        "lat"
-      ) ||
-      currentUrl.searchParams.has(
-        "lng"
-      ) ||
-      currentUrl.searchParams.has(
-        "zoom"
-      );
+      const source =
+        map.getSource(
+          SOURCE_ID
+        ) as
+          | GeoJSONSource
+          | undefined;
 
-    if (
-      hadCameraParams
-    ) {
-      currentUrl.searchParams.delete(
-        "lat"
-      );
-
-      currentUrl.searchParams.delete(
-        "lng"
-      );
-
-      currentUrl.searchParams.delete(
-        "zoom"
-      );
-
-      window.history.replaceState(
-        {},
-        "",
-        `${currentUrl.pathname}${currentUrl.search}${currentUrl.hash}`
-      );
-    }
-
-    const token =
-      process.env
-        .NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
-
-    if (!token) {
-      console.error(
-        "NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN is missing."
-      );
-
-      return;
-    }
-
-    mapboxgl.accessToken =
-      token;
-
-    let disposed =
-      false;
-
-    let map:
-      | mapboxgl.Map
-      | null = null;
-
-    function initializeMap() {
       if (
-        disposed ||
+        source
+      ) {
+        /*
+         * Invalidate any request started with the
+         * previous filters or map mode.
+         */
+        requestSequenceRef.current +=
+          1;
+
+        /*
+         * A mode switch should never display the
+         * previous mode's points while the new RPC
+         * request is still in flight.
+         */
+        if (
+          previousMode !==
+          mode
+        ) {
+          source.setData({
+            type:
+              "FeatureCollection",
+            features:
+              [],
+          } as any);
+        }
+
+        void loadData(
+          map
+        );
+      }
+    },
+    [
+      mode,
+      selectedGenres,
+      selectedStatuses,
+      selectedLocations,
+      eraStarts,
+      eraEnds,
+      minListeners,
+      maxListeners,
+      eventLocations,
+      eventGenres,
+      eventStartBefore,
+      eventNearLatitude,
+      eventNearLongitude,
+      eventRadiusMiles,
+    ]
+  );
+
+  // ============================================
+  // NEAR ME CAMERA FIT
+  // ============================================
+
+  useEffect(
+    () => {
+      if (
+        nearMeFocusToken <=
+          0 ||
+        eventNearLatitude ===
+          null ||
+        eventNearLongitude ===
+          null ||
+        eventRadiusMiles ===
+          null
+      ) {
+        return;
+      }
+
+      const map =
+        mapRef.current;
+
+      if (!map) {
+        return;
+      }
+
+      map.fitBounds(
+        getRadiusBounds(
+          eventNearLatitude,
+          eventNearLongitude,
+          eventRadiusMiles
+        ),
+        {
+          padding: {
+            top:
+              65,
+
+            right:
+              65,
+
+            bottom:
+              65,
+
+            left:
+              65,
+          },
+
+          maxZoom:
+            13,
+
+          duration:
+            700,
+        }
+      );
+    },
+    [
+      nearMeFocusToken,
+      eventNearLatitude,
+      eventNearLongitude,
+      eventRadiusMiles,
+    ]
+  );
+
+  // ============================================
+  // MAP INITIALIZATION
+  // ============================================
+
+  useEffect(
+    () => {
+      const container =
+        containerRef.current;
+
+      if (
+        !container ||
         mapRef.current
       ) {
         return;
       }
 
       /*
-       * Prevent Mapbox from initializing
-       * against a zero-size container.
+       * Keep a non-null local reference.
+       * This prevents TypeScript from widening
+       * containerRef.current back to null inside
+       * nested callbacks.
        */
-      if (
-        mapContainer.clientWidth <=
-          0 ||
-        mapContainer.clientHeight <=
-          0
-      ) {
-        resizeFrameRef.current =
-          window.requestAnimationFrame(
-            initializeMap
-          );
-
-        return;
-      }
+      const mapContainer:
+        HTMLDivElement =
+        container;
 
       try {
-        map =
-          new mapboxgl.Map({
-            container:
-              mapContainer,
+        window.sessionStorage.removeItem(
+          OLD_MAP_STORAGE_KEY
+        );
+      } catch {
+        // Ignore storage errors.
+      }
 
-            style:
-              "mapbox://styles/mapbox/light-v11",
+      /*
+       * Remove old camera query parameters
+       * while preserving filters and mode.
+       */
+      const currentUrl =
+        new URL(
+          window.location.href
+        );
 
-            projection:
-              "mercator",
+      const hadCameraParams =
+        currentUrl.searchParams.has(
+          "lat"
+        ) ||
+        currentUrl.searchParams.has(
+          "lng"
+        ) ||
+        currentUrl.searchParams.has(
+          "zoom"
+        );
 
-            center:
-              DEFAULT_CENTER,
+      if (
+        hadCameraParams
+      ) {
+        currentUrl.searchParams.delete(
+          "lat"
+        );
 
-            zoom:
-              DEFAULT_ZOOM,
+        currentUrl.searchParams.delete(
+          "lng"
+        );
 
-            minZoom:
-              MIN_ZOOM,
+        currentUrl.searchParams.delete(
+          "zoom"
+        );
 
-            maxZoom:
-              MAX_ZOOM,
+        window.history.replaceState(
+          {},
+          "",
+          `${currentUrl.pathname}${currentUrl.search}${currentUrl.hash}`
+        );
+      }
 
-            trackResize:
-              true,
-          });
-      } catch (error) {
+      const token =
+        process.env
+          .NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
+
+      if (!token) {
         console.error(
-          "Unable to initialize Mapbox:",
-          error
+          "NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN is missing."
         );
 
         return;
       }
 
-      const activeMap =
-        map;
+      mapboxgl.accessToken =
+        token;
 
-      mapRef.current =
-        activeMap;
+      let disposed =
+        false;
 
-      /* =====================================
-         RESIZE
-      ===================================== */
+      let map:
+        | mapboxgl.Map
+        | null =
+        null;
 
-      const resizeObserver =
-        new ResizeObserver(
+      function initializeMap() {
+        if (
+          disposed ||
+          mapRef.current
+        ) {
+          return;
+        }
+
+        /*
+         * Avoid initializing Mapbox against
+         * a zero-size container.
+         */
+        if (
+          mapContainer.clientWidth <=
+            0 ||
+          mapContainer.clientHeight <=
+            0
+        ) {
+          resizeFrameRef.current =
+            window.requestAnimationFrame(
+              initializeMap
+            );
+
+          return;
+        }
+
+        try {
+          map =
+            new mapboxgl.Map({
+              container:
+                mapContainer,
+
+              style:
+                "mapbox://styles/mapbox/light-v11",
+
+              projection:
+                "mercator",
+
+              center:
+                DEFAULT_CENTER,
+
+              zoom:
+                DEFAULT_ZOOM,
+
+              minZoom:
+                MIN_ZOOM,
+
+              maxZoom:
+                MAX_ZOOM,
+
+              trackResize:
+                true,
+            });
+        } catch (
+          error
+        ) {
+          console.error(
+            "Unable to initialize Mapbox:",
+            error
+          );
+
+          return;
+        }
+
+        const activeMap =
+          map;
+
+        mapRef.current =
+          activeMap;
+
+        // ======================================
+        // RESIZE OBSERVER
+        // ======================================
+
+        const resizeObserver =
+          new ResizeObserver(
+            () => {
+              if (
+                disposed
+              ) {
+                return;
+              }
+
+              if (
+                resizeFrameRef.current !==
+                null
+              ) {
+                window.cancelAnimationFrame(
+                  resizeFrameRef.current
+                );
+              }
+
+              resizeFrameRef.current =
+                window.requestAnimationFrame(
+                  () => {
+                    if (
+                      disposed
+                    ) {
+                      return;
+                    }
+
+                    if (
+                      mapContainer.clientWidth >
+                        0 &&
+                      mapContainer.clientHeight >
+                        0
+                    ) {
+                      try {
+                        activeMap.resize();
+                      } catch (
+                        error
+                      ) {
+                        console.warn(
+                          "Map resize failed:",
+                          error
+                        );
+                      }
+                    }
+                  }
+                );
+            }
+          );
+
+        resizeObserver.observe(
+          mapContainer
+        );
+
+        resizeObserverRef.current =
+          resizeObserver;
+
+        // ======================================
+        // CONTROLS
+        // ======================================
+
+        activeMap.addControl(
+          new mapboxgl.NavigationControl(),
+          "top-right"
+        );
+
+        activeMap.on(
+          "error",
+          (
+            event
+          ) => {
+            console.error(
+              "Mapbox error:",
+              event.error
+            );
+          }
+        );
+
+        // ======================================
+        // MAP LOAD
+        // ======================================
+
+        activeMap.on(
+          "load",
+          () => {
+            if (
+              disposed
+            ) {
+              return;
+            }
+
+            // ==================================
+            // MAIN DATA SOURCE
+            // ==================================
+
+            if (
+              !activeMap.getSource(
+                SOURCE_ID
+              )
+            ) {
+              activeMap.addSource(
+                SOURCE_ID,
+                {
+                  type:
+                    "geojson",
+
+                  data: {
+                    type:
+                      "FeatureCollection",
+
+                    features:
+                      [],
+                  },
+
+                  cluster:
+                    true,
+
+                  clusterRadius:
+                    50,
+
+                  clusterMaxZoom:
+                    13,
+                }
+              );
+            }
+
+            // ==================================
+            // SEARCH RADIUS SOURCE
+            // ==================================
+
+            if (
+              !activeMap.getSource(
+                RADIUS_SOURCE_ID
+              )
+            ) {
+              activeMap.addSource(
+                RADIUS_SOURCE_ID,
+                {
+                  type:
+                    "geojson",
+
+                  data: {
+                    type:
+                      "FeatureCollection",
+
+                    features:
+                      [],
+                  },
+                }
+              );
+            }
+
+            // ==================================
+            // RADIUS FILL
+            // ==================================
+
+            if (
+              !activeMap.getLayer(
+                RADIUS_FILL_LAYER_ID
+              )
+            ) {
+              activeMap.addLayer({
+                id:
+                  RADIUS_FILL_LAYER_ID,
+
+                type:
+                  "fill",
+
+                source:
+                  RADIUS_SOURCE_ID,
+
+                paint: {
+                  "fill-color":
+                    "#111111",
+
+                  "fill-opacity":
+                    0.06,
+                },
+              });
+            }
+
+            // ==================================
+            // RADIUS OUTLINE
+            // ==================================
+
+            if (
+              !activeMap.getLayer(
+                RADIUS_OUTLINE_LAYER_ID
+              )
+            ) {
+              activeMap.addLayer({
+                id:
+                  RADIUS_OUTLINE_LAYER_ID,
+
+                type:
+                  "line",
+
+                source:
+                  RADIUS_SOURCE_ID,
+
+                paint: {
+                  "line-color":
+                    "#111111",
+
+                  "line-width":
+                    2,
+
+                  "line-opacity":
+                    0.5,
+
+                  "line-dasharray": [
+                    4,
+                    3,
+                  ],
+                },
+              });
+            }
+
+            // ==================================
+            // CLUSTERS
+            // ==================================
+
+            if (
+              !activeMap.getLayer(
+                CLUSTER_LAYER_ID
+              )
+            ) {
+              activeMap.addLayer({
+                id:
+                  CLUSTER_LAYER_ID,
+
+                type:
+                  "circle",
+
+                source:
+                  SOURCE_ID,
+
+                filter: [
+                  "has",
+                  "point_count",
+                ],
+
+                paint: {
+                  "circle-color":
+                    "#111111",
+
+                  "circle-radius": [
+                    "step",
+
+                    [
+                      "get",
+                      "point_count",
+                    ],
+
+                    18,
+
+                    10,
+                    22,
+
+                    30,
+                    28,
+                  ],
+
+                  "circle-stroke-color":
+                    "#ffffff",
+
+                  "circle-stroke-width":
+                    2,
+                },
+              });
+            }
+
+            // ==================================
+            // CLUSTER COUNT
+            // ==================================
+
+            if (
+              !activeMap.getLayer(
+                CLUSTER_COUNT_LAYER_ID
+              )
+            ) {
+              activeMap.addLayer({
+                id:
+                  CLUSTER_COUNT_LAYER_ID,
+
+                type:
+                  "symbol",
+
+                source:
+                  SOURCE_ID,
+
+                filter: [
+                  "has",
+                  "point_count",
+                ],
+
+                layout: {
+                  "text-field":
+                    "{point_count_abbreviated}",
+
+                  "text-size":
+                    12,
+                },
+
+                paint: {
+                  "text-color":
+                    "#ffffff",
+                },
+              });
+            }
+            // ==================================
+            // CLUSTER TOUCH TARGETS
+            // ==================================
+
+            if (
+              !activeMap.getLayer(
+                CLUSTER_TOUCH_LAYER_ID
+              )
+            ) {
+              activeMap.addLayer({
+                id:
+                  CLUSTER_TOUCH_LAYER_ID,
+
+                type:
+                  "circle",
+
+                source:
+                  SOURCE_ID,
+
+                filter: [
+                  "has",
+                  "point_count",
+                ],
+
+                paint: {
+                  /*
+                   * Invisible interaction layer.
+                   * Keep the visual cluster size
+                   * unchanged while making touch
+                   * interaction easier on phones.
+                   */
+                  "circle-radius": [
+                    "step",
+
+                    [
+                      "get",
+                      "point_count",
+                    ],
+
+                    24,
+
+                    10,
+                    28,
+
+                    30,
+                    34,
+                  ],
+
+                  "circle-color":
+                    "#111111",
+
+                  "circle-opacity":
+                    0.01,
+                },
+              });
+            }
+            // ==================================
+            // ARTIST / EVENT POINTS
+            // ==================================
+
+            if (
+              !activeMap.getLayer(
+                POINT_LAYER_ID
+              )
+            ) {
+              activeMap.addLayer({
+                id:
+                  POINT_LAYER_ID,
+
+                type:
+                  "circle",
+
+                source:
+                  SOURCE_ID,
+
+                filter: [
+                  "!",
+                  [
+                    "has",
+                    "point_count",
+                  ],
+                ],
+
+                paint: {
+                  /*
+                   * Default style is Artists.
+                   * updatePointStyle handles
+                   * mode changes afterward.
+                   */
+                  "circle-color":
+                    "#111111",
+
+                  "circle-radius":
+                    7,
+
+                  "circle-stroke-color":
+                    "#ffffff",
+
+                  "circle-stroke-width":
+                    2,
+                },
+              });
+            }
+            // ==================================
+            // POINT TOUCH TARGETS
+            // ==================================
+
+            if (
+              !activeMap.getLayer(
+                POINT_TOUCH_LAYER_ID
+              )
+            ) {
+              activeMap.addLayer({
+                id:
+                  POINT_TOUCH_LAYER_ID,
+
+                type:
+                  "circle",
+
+                source:
+                  SOURCE_ID,
+
+                filter: [
+                  "!",
+                  [
+                    "has",
+                    "point_count",
+                  ],
+                ],
+
+                paint: {
+                  /*
+                   * 44px diameter touch target
+                   * without changing the visible
+                   * Artist or Event marker size.
+                   */
+                  "circle-radius":
+                    22,
+
+                  "circle-color":
+                    "#111111",
+
+                  "circle-opacity":
+                    0.01,
+                },
+              });
+            }
+            // ==================================
+            // USER LOCATION SOURCE
+            // ==================================
+
+            if (
+              !activeMap.getSource(
+                USER_SOURCE_ID
+              )
+            ) {
+              activeMap.addSource(
+                USER_SOURCE_ID,
+                {
+                  type:
+                    "geojson",
+
+                  data: {
+                    type:
+                      "FeatureCollection",
+
+                    features:
+                      [],
+                  },
+                }
+              );
+            }
+
+            // ==================================
+            // USER LOCATION OUTER MARKER
+            // ==================================
+
+            if (
+              !activeMap.getLayer(
+                USER_OUTER_LAYER_ID
+              )
+            ) {
+              activeMap.addLayer({
+                id:
+                  USER_OUTER_LAYER_ID,
+
+                type:
+                  "circle",
+
+                source:
+                  USER_SOURCE_ID,
+
+                paint: {
+                  "circle-radius":
+                    12,
+
+                  "circle-color":
+                    "#ffffff",
+
+                  "circle-stroke-color":
+                    "#111111",
+
+                  "circle-stroke-width":
+                    2,
+                },
+              });
+            }
+
+            // ==================================
+            // USER LOCATION INNER MARKER
+            // ==================================
+
+            if (
+              !activeMap.getLayer(
+                USER_INNER_LAYER_ID
+              )
+            ) {
+              activeMap.addLayer({
+                id:
+                  USER_INNER_LAYER_ID,
+
+                type:
+                  "circle",
+
+                source:
+                  USER_SOURCE_ID,
+
+                paint: {
+                  "circle-radius":
+                    4,
+
+                  "circle-color":
+                    "#111111",
+                },
+              });
+            }
+
+            updatePointStyle(
+              activeMap
+            );
+
+            updateLocationLayers(
+              activeMap
+            );
+
+            /*
+             * Load once after the style and
+             * sources are completely ready.
+             */
+            activeMap.once(
+              "idle",
+              () => {
+                if (
+                  disposed
+                ) {
+                  return;
+                }
+
+                void loadData(
+                  activeMap
+                );
+              }
+            );
+          }
+        );
+
+        // ======================================
+        // PAN / ZOOM
+        // ======================================
+
+        activeMap.on(
+          "moveend",
           () => {
             if (
               disposed
@@ -1163,630 +3254,361 @@ if (
             }
 
             if (
-              resizeFrameRef.current !==
-              null
+              !activeMap.getSource(
+                SOURCE_ID
+              )
             ) {
-              window.cancelAnimationFrame(
-                resizeFrameRef.current
-              );
+              return;
             }
 
-            resizeFrameRef.current =
-              window.requestAnimationFrame(
-                () => {
-                  if (
-                    disposed
-                  ) {
-                    return;
-                  }
-
-                  if (
-                    mapContainer.clientWidth >
-                      0 &&
-                    mapContainer.clientHeight >
-                      0
-                  ) {
-                    try {
-                      activeMap.resize();
-                    } catch (
-                      error
-                    ) {
-                      console.warn(
-                        "Map resize failed:",
-                        error
-                      );
-                    }
-                  }
-                }
-              );
-          }
-        );
-
-      resizeObserver.observe(
-        mapContainer
-      );
-
-      resizeObserverRef.current =
-        resizeObserver;
-
-      /* =====================================
-         CONTROLS
-      ===================================== */
-
-      activeMap.addControl(
-        new mapboxgl.NavigationControl(),
-        "top-right"
-      );
-
-      activeMap.on(
-        "error",
-        (event) => {
-          console.error(
-            "Mapbox error:",
-            event.error
-          );
-        }
-      );
-
-      /* =====================================
-         MAP LOAD
-      ===================================== */
-
-      activeMap.on(
-        "load",
-        () => {
-          if (
-            disposed
-          ) {
-            return;
-          }
-
-          try {
-            activeMap.resize();
-          } catch (
-            error
-          ) {
-            console.warn(
-              "Initial map resize failed:",
-              error
-            );
-          }
-
-          /* ------------------------------
-             SOURCE
-          ------------------------------ */
-
-          if (
-            !activeMap.getSource(
-              SOURCE_ID
-            )
-          ) {
-            activeMap.addSource(
-              SOURCE_ID,
-              {
-                type:
-                  "geojson",
-
-                data: {
-                  type:
-                    "FeatureCollection",
-
-                  features:
-                    [],
-                },
-
-                cluster:
-                  true,
-
-                clusterMaxZoom:
-                  13,
-
-                clusterRadius:
-                  50,
-              }
-            );
-          }
-
-          /* ------------------------------
-             CLUSTERS
-          ------------------------------ */
-
-          if (
-            !activeMap.getLayer(
-              CLUSTER_LAYER_ID
-            )
-          ) {
-            activeMap.addLayer({
-              id:
-                CLUSTER_LAYER_ID,
-
-              type:
-                "circle",
-
-              source:
-                SOURCE_ID,
-
-              filter: [
-                "has",
-                "point_count",
-              ],
-
-              paint: {
-                "circle-color":
-                  "#111111",
-
-                "circle-radius": [
-                  "step",
-
-                  [
-                    "get",
-                    "point_count",
-                  ],
-
-                  18,
-
-                  10,
-                  22,
-
-                  30,
-                  28,
-                ],
-
-                "circle-stroke-color":
-                  "#ffffff",
-
-                "circle-stroke-width":
-                  2,
-              },
-            });
-          }
-
-          /* ------------------------------
-             CLUSTER COUNT
-          ------------------------------ */
-
-          if (
-            !activeMap.getLayer(
-              CLUSTER_COUNT_LAYER_ID
-            )
-          ) {
-            activeMap.addLayer({
-              id:
-                CLUSTER_COUNT_LAYER_ID,
-
-              type:
-                "symbol",
-
-              source:
-                SOURCE_ID,
-
-              filter: [
-                "has",
-                "point_count",
-              ],
-
-              layout: {
-                "text-field":
-                  "{point_count_abbreviated}",
-
-                "text-size":
-                  12,
-              },
-
-              paint: {
-                "text-color":
-                  "#ffffff",
-              },
-            });
-          }
-
-          /* ------------------------------
-             ARTIST MARKERS
-          ------------------------------ */
-
-          if (
-            !activeMap.getLayer(
-              ARTIST_LAYER_ID
-            )
-          ) {
-            activeMap.addLayer({
-              id:
-                ARTIST_LAYER_ID,
-
-              type:
-                "circle",
-
-              source:
-                SOURCE_ID,
-
-              filter: [
-                "!",
-                [
-                  "has",
-                  "point_count",
-                ],
-              ],
-
-              paint: {
-                "circle-color":
-                  "#111111",
-
-                "circle-radius":
-                  7,
-
-                "circle-stroke-color":
-                  "#ffffff",
-
-                "circle-stroke-width":
-                  2,
-              },
-            });
-          }
-
-          /*
-           * Wait until Mapbox completes its
-           * first render before querying
-           * visible bounds.
-           */
-          activeMap.once(
-            "idle",
-            () => {
-              if (
-                disposed
-              ) {
-                return;
-              }
-
-              void loadArtists(
-                activeMap
-              );
-            }
-          );
-        }
-      );
-
-      /* =====================================
-         PAN / ZOOM
-      ===================================== */
-
-      activeMap.on(
-        "moveend",
-        () => {
-          if (
-            disposed
-          ) {
-            return;
-          }
-
-          if (
-            activeMap.getSource(
-              SOURCE_ID
-            )
-          ) {
-            void loadArtists(
+            void loadData(
               activeMap
             );
           }
-        }
-      );
-
-      /* =====================================
-         CLUSTER CLICK
-      ===================================== */
-
-      activeMap.on(
-        "click",
-        CLUSTER_LAYER_ID,
-        (event) => {
-          if (
-            disposed
-          ) {
-            return;
-          }
-
-          const rawFeatures =
-            activeMap.queryRenderedFeatures(
-              event.point,
-              {
-                layers: [
-                  CLUSTER_LAYER_ID,
-                ],
-              }
-            );
-
-          const feature =
-  rawFeatures[0] as unknown as
-    | RenderedPointFeature
-    | undefined;
-
-          if (
-            !feature ||
-            feature.geometry.type !==
-              "Point" ||
-            !feature.geometry.coordinates
-          ) {
-            return;
-          }
-
-          const clusterId =
-            feature.properties
-              ?.cluster_id;
-
-          if (
-            clusterId ==
-            null
-          ) {
-            return;
-          }
-
-          const source =
-            activeMap.getSource(
-              SOURCE_ID
-            ) as
-              | GeoJSONSource
-              | undefined;
-
-          if (!source) {
-            return;
-          }
-
-          const longitude =
-            Number(
-              feature.geometry
-                .coordinates[0]
-            );
-
-          const latitude =
-            Number(
-              feature.geometry
-                .coordinates[1]
-            );
-
-          if (
-            !isValidLongitude(
-              longitude
-            ) ||
-            !isValidLatitude(
-              latitude
-            )
-          ) {
-            return;
-          }
-
-          const coordinates: [
-            number,
-            number,
-          ] = [
-            longitude,
-            latitude,
-          ];
-
-          source.getClusterExpansionZoom(
-            Number(
-              clusterId
-            ),
-            (
-              error,
-              zoom
-            ) => {
-              if (
-                error ||
-                disposed
-              ) {
-                if (error) {
-                  console.error(
-                    "Unable to expand cluster:",
-                    error
-                  );
-                }
-
-                return;
-              }
-
-              if (
-                typeof zoom !==
-                  "number" ||
-                !Number.isFinite(
-                  zoom
-                )
-              ) {
-                return;
-              }
-
-              activeMap.easeTo({
-                center:
-                  coordinates,
-
-                zoom:
-                  clampZoom(
-                    zoom
-                  ),
-              });
-            }
-          );
-        }
-      );
-
-      /* =====================================
-         ARTIST CLICK
-      ===================================== */
-
-      activeMap.on(
-        "click",
-        ARTIST_LAYER_ID,
-        (event) => {
-          if (
-            disposed
-          ) {
-            return;
-          }
-
-          const rawFeature =
-            event.features?.[0];
-
-          const feature =
-  rawFeature as unknown as
-    | RenderedPointFeature
-    | undefined;
-
-          if (
-            !feature ||
-            feature.geometry.type !==
-              "Point" ||
-            !feature.geometry.coordinates
-          ) {
-            return;
-          }
-
-          const longitude =
-            Number(
-              feature.geometry
-                .coordinates[0]
-            );
-
-          const latitude =
-            Number(
-              feature.geometry
-                .coordinates[1]
-            );
-
-          if (
-            !isValidLongitude(
-              longitude
-            ) ||
-            !isValidLatitude(
-              latitude
-            )
-          ) {
-            return;
-          }
-
-          const coordinates: [
-            number,
-            number,
-          ] = [
-            longitude,
-            latitude,
-          ];
-
-          popupRef.current?.remove();
-
-          popupRef.current =
-            new mapboxgl.Popup({
-              offset:
-                12,
-
-              closeButton:
-                true,
-
-              closeOnClick:
-                true,
-
-              maxWidth:
-                "300px",
-            })
-              .setLngLat(
-                coordinates
-              )
-              .setHTML(
-                buildPopup(
-                  feature.properties
-                )
-              )
-              .addTo(
-                activeMap
-              );
-        }
-      );
-
-      /* =====================================
-         CURSOR
-      ===================================== */
-
-      activeMap.on(
-        "mouseenter",
-        CLUSTER_LAYER_ID,
-        () => {
-          activeMap.getCanvas().style.cursor =
-            "pointer";
-        }
-      );
-
-      activeMap.on(
-        "mouseleave",
-        CLUSTER_LAYER_ID,
-        () => {
-          activeMap.getCanvas().style.cursor =
-            "";
-        }
-      );
-
-      activeMap.on(
-        "mouseenter",
-        ARTIST_LAYER_ID,
-        () => {
-          activeMap.getCanvas().style.cursor =
-            "pointer";
-        }
-      );
-
-      activeMap.on(
-        "mouseleave",
-        ARTIST_LAYER_ID,
-        () => {
-          activeMap.getCanvas().style.cursor =
-            "";
-        }
-      );
-    }
-
-    initializeMap();
-
-    /* =====================================
-       CLEANUP
-    ===================================== */
-
-    return () => {
-      disposed =
-        true;
-
-      if (
-        resizeFrameRef.current !==
-        null
-      ) {
-        window.cancelAnimationFrame(
-          resizeFrameRef.current
         );
 
-        resizeFrameRef.current =
+        // ======================================
+        // CLUSTER CLICK
+        // ======================================
+
+activeMap.on(
+  "click",
+  CLUSTER_TOUCH_LAYER_ID,
+          (
+            event
+          ) => {
+            if (
+              disposed
+            ) {
+              return;
+            }
+
+            const features =
+              activeMap.queryRenderedFeatures(
+                event.point,
+                {
+layers: [
+  CLUSTER_TOUCH_LAYER_ID,
+],
+                }
+              );
+
+            const feature =
+              features[0] as unknown as
+                | RenderedPointFeature
+                | undefined;
+
+            if (
+              !feature ||
+              feature.geometry.type !==
+                "Point" ||
+              !feature.geometry.coordinates
+            ) {
+              return;
+            }
+
+            const source =
+              activeMap.getSource(
+                SOURCE_ID
+              ) as
+                | GeoJSONSource
+                | undefined;
+
+            if (!source) {
+              return;
+            }
+
+            const clusterId =
+              Number(
+                feature.properties
+                  ?.cluster_id
+              );
+
+            if (
+              !Number.isFinite(
+                clusterId
+              )
+            ) {
+              return;
+            }
+
+            const longitude =
+              Number(
+                feature.geometry
+                  .coordinates[0]
+              );
+
+            const latitude =
+              Number(
+                feature.geometry
+                  .coordinates[1]
+              );
+
+            if (
+              !isValidLongitude(
+                longitude
+              ) ||
+              !isValidLatitude(
+                latitude
+              )
+            ) {
+              return;
+            }
+
+            const coordinates: [
+              number,
+              number,
+            ] = [
+              longitude,
+              latitude,
+            ];
+
+            /*
+             * Preserve callback API.
+             */
+            source.getClusterExpansionZoom(
+              clusterId,
+              (
+                error,
+                zoom
+              ) => {
+                if (
+                  error ||
+                  disposed
+                ) {
+                  if (
+                    error
+                  ) {
+                    console.error(
+                      "Unable to expand cluster:",
+                      error
+                    );
+                  }
+
+                  return;
+                }
+
+                if (
+                  typeof zoom !==
+                    "number" ||
+                  !Number.isFinite(
+                    zoom
+                  )
+                ) {
+                  return;
+                }
+
+                activeMap.easeTo({
+                  center:
+                    coordinates,
+
+                  zoom:
+                    Math.max(
+                      MIN_ZOOM,
+                      Math.min(
+                        MAX_ZOOM,
+                        zoom
+                      )
+                    ),
+                });
+              }
+            );
+          }
+        );
+
+        // ======================================
+        // POINT CLICK
+        // ======================================
+
+activeMap.on(
+  "click",
+  POINT_TOUCH_LAYER_ID,
+          (
+            event
+          ) => {
+            if (
+              disposed
+            ) {
+              return;
+            }
+
+            const feature =
+              event.features?.[0] as unknown as
+                | RenderedPointFeature
+                | undefined;
+
+            if (
+              !feature ||
+              feature.geometry.type !==
+                "Point" ||
+              !feature.geometry.coordinates
+            ) {
+              return;
+            }
+
+            const longitude =
+              Number(
+                feature.geometry
+                  .coordinates[0]
+              );
+
+            const latitude =
+              Number(
+                feature.geometry
+                  .coordinates[1]
+              );
+
+            if (
+              !isValidLongitude(
+                longitude
+              ) ||
+              !isValidLatitude(
+                latitude
+              )
+            ) {
+              return;
+            }
+
+            const kind =
+              String(
+                feature.properties
+                  ?.kind ??
+                  "artist"
+              );
+
+            const popupHtml =
+              kind ===
+              "event"
+                ? buildEventPopup(
+                    feature.properties ??
+                    null
+                  )
+                : buildArtistPopup(
+                    feature.properties ??
+                    null
+                  );
+
+            popupRef.current?.remove();
+
+            popupRef.current =
+              new mapboxgl.Popup({
+                offset:
+                  12,
+
+                closeButton:
+                  true,
+
+                closeOnClick:
+                  true,
+
+maxWidth:
+  "min(320px, calc(100vw - 48px))",
+              })
+                .setLngLat([
+                  longitude,
+                  latitude,
+                ])
+                .setHTML(
+                  popupHtml
+                )
+                .addTo(
+                  activeMap
+                );
+          }
+        );
+
+        // ======================================
+        // CURSOR
+        // ======================================
+
+        activeMap.on(
+          "mouseenter",
+  CLUSTER_TOUCH_LAYER_ID,
+          () => {
+            activeMap.getCanvas().style.cursor =
+              "pointer";
+          }
+        );
+
+        activeMap.on(
+          "mouseleave",
+CLUSTER_TOUCH_LAYER_ID,
+          () => {
+            activeMap.getCanvas().style.cursor =
+              "";
+          }
+        );
+
+        activeMap.on(
+          "mouseenter",
+          POINT_LAYER_ID,
+          () => {
+            activeMap.getCanvas().style.cursor =
+              "pointer";
+          }
+        );
+
+        activeMap.on(
+          "mouseleave",
+          POINT_LAYER_ID,
+          () => {
+            activeMap.getCanvas().style.cursor =
+              "";
+          }
+        );
+      }
+
+      initializeMap();
+
+      // ========================================
+      // CLEANUP
+      // ========================================
+
+      return () => {
+        disposed =
+          true;
+
+        if (
+          resizeFrameRef.current !==
+          null
+        ) {
+          window.cancelAnimationFrame(
+            resizeFrameRef.current
+          );
+
+          resizeFrameRef.current =
+            null;
+        }
+
+        resizeObserverRef.current?.disconnect();
+
+        resizeObserverRef.current =
           null;
-      }
 
-      resizeObserverRef.current?.disconnect();
+        popupRef.current?.remove();
 
-      resizeObserverRef.current =
-        null;
+        popupRef.current =
+          null;
 
-      popupRef.current?.remove();
+        if (
+          map
+        ) {
+          map.remove();
+        }
 
-      popupRef.current =
-        null;
-
-      if (map) {
-        map.remove();
-      }
-
-      mapRef.current =
-        null;
-    };
-  }, []);
-
-  return (
-    <div
-      ref={
-        containerRef
-      }
-      className="h-[580px] w-full sm:h-[620px] lg:h-[680px]"
-    />
+        mapRef.current =
+          null;
+      };
+    },
+    []
   );
+
+ return (
+  <div
+    ref={
+      containerRef
+    }
+    className="h-[68svh] min-h-[460px] max-h-[580px] w-full sm:h-[620px] sm:min-h-0 sm:max-h-none lg:h-[680px]"
+  />
+);
 }

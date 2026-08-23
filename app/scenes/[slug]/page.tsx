@@ -31,32 +31,130 @@ type SceneArtist = {
     | number
     | null;
   is_primary_scene: boolean;
+
   genres: {
     id: string;
     name: string;
     slug: string;
     is_primary: boolean;
   }[];
+
   location: {
     id: string;
     name: string;
+
     city:
       | string
       | null;
+
     region:
       | string
       | null;
+
     country: string;
   } | null;
+
   image_url:
     | string
     | null;
 };
 
+type SceneVenue = {
+  id: string;
+  name: string;
+  slug: string;
+
+  address_line_1:
+    | string
+    | null;
+
+  address_line_2:
+    | string
+    | null;
+
+  postal_code:
+    | string
+    | null;
+
+  website_url:
+    | string
+    | null;
+
+  active: boolean;
+
+  upcoming_event_count:
+    number;
+
+  next_event:
+    | {
+        id: string;
+        title: string;
+        slug: string;
+        start_at: string;
+
+        timezone:
+          | string
+          | null;
+
+        status:
+          | string
+          | null;
+      }
+    | null;
+};
+
+function formatEventDate(
+  value: string,
+  timezone: string
+) {
+  try {
+    return new Intl.DateTimeFormat(
+      "en-US",
+      {
+        timeZone:
+          timezone,
+
+        month:
+          "short",
+
+        day:
+          "numeric",
+
+        year:
+          "numeric",
+      }
+    ).format(
+      new Date(
+        value
+      )
+    );
+  } catch {
+    return new Intl.DateTimeFormat(
+      "en-US",
+      {
+        month:
+          "short",
+
+        day:
+          "numeric",
+
+        year:
+          "numeric",
+      }
+    ).format(
+      new Date(
+        value
+      )
+    );
+  }
+}
+
 export default async function ScenePage({
   params,
 }: ScenePageProps) {
-  const { slug } =
+  const {
+    slug,
+  } =
     await params;
 
   const supabase =
@@ -70,7 +168,9 @@ export default async function ScenePage({
     data: scene,
     error: sceneError,
   } = await supabase
-    .from("scenes")
+    .from(
+      "scenes"
+    )
     .select(
       `
       id,
@@ -152,19 +252,25 @@ export default async function ScenePage({
     | {
         id: string;
         name: string;
+
         city:
           | string
           | null;
+
         region:
           | string
           | null;
+
         country: string;
+
         country_code:
           | string
           | null;
+
         latitude:
           | number
           | null;
+
         longitude:
           | number
           | null;
@@ -199,7 +305,8 @@ export default async function ScenePage({
       .maybeSingle();
 
     sceneLocation =
-      location ?? null;
+      location ??
+      null;
   }
 
   // ============================================
@@ -236,9 +343,12 @@ export default async function ScenePage({
 
   const artistIds =
     artistSceneRows?.map(
-      (row) =>
+      (
+        row
+      ) =>
         row.artist_id
-    ) ?? [];
+    ) ??
+    [];
 
   // ============================================
   // ARTISTS
@@ -249,18 +359,23 @@ export default async function ScenePage({
       id: string;
       name: string;
       slug: string;
+
       bio_short:
         | string
         | null;
+
       status:
         | string
         | null;
+
       artist_type:
         | string
         | null;
+
       year_started:
         | number
         | null;
+
       year_ended:
         | number
         | null;
@@ -274,7 +389,9 @@ export default async function ScenePage({
       data,
       error,
     } = await supabase
-      .from("artists")
+      .from(
+        "artists"
+      )
       .select(
         `
         id,
@@ -295,16 +412,21 @@ export default async function ScenePage({
         "published",
         true
       )
-      .order("name");
+      .order(
+        "name"
+      );
 
-    if (error) {
+    if (
+      error
+    ) {
       throw new Error(
         error.message
       );
     }
 
     rawArtists =
-      data ?? [];
+      data ??
+      [];
   }
 
   // ============================================
@@ -340,7 +462,9 @@ export default async function ScenePage({
         artistGenreRows ??
         []
       ).map(
-        (row) =>
+        (
+          row
+        ) =>
           row.genre_id
       )
     ),
@@ -374,7 +498,9 @@ export default async function ScenePage({
         genreRows ??
         []
       ).map(
-        (genre) => [
+        (
+          genre
+        ) => [
           genre.id,
           genre,
         ]
@@ -418,7 +544,9 @@ export default async function ScenePage({
         artistLocationRows ??
         []
       ).map(
-        (row) =>
+        (
+          row
+        ) =>
           row.location_id
       )
     ),
@@ -499,12 +627,17 @@ export default async function ScenePage({
   // ASSEMBLE ARTISTS
   // ============================================
 
-  const artists: SceneArtist[] =
+  const artists:
+    SceneArtist[] =
     rawArtists.map(
-      (artist) => {
+      (
+        artist
+      ) => {
         const sceneRelationship =
           artistSceneRows?.find(
-            (row) =>
+            (
+              row
+            ) =>
               row.artist_id ===
               artist.id
           );
@@ -515,23 +648,30 @@ export default async function ScenePage({
             []
           )
             .filter(
-              (row) =>
+              (
+                row
+              ) =>
                 row.artist_id ===
                 artist.id
             )
             .map(
-              (row) => {
+              (
+                row
+              ) => {
                 const genre =
                   genreMap.get(
                     row.genre_id
                   );
 
-                if (!genre) {
+                if (
+                  !genre
+                ) {
                   return null;
                 }
 
                 return {
                   ...genre,
+
                   is_primary:
                     row.is_primary,
                 };
@@ -550,7 +690,10 @@ export default async function ScenePage({
                 null
             )
             .sort(
-              (a, b) =>
+              (
+                a,
+                b
+              ) =>
                 Number(
                   b.is_primary
                 ) -
@@ -561,7 +704,9 @@ export default async function ScenePage({
 
         const locationRelationship =
           artistLocationRows?.find(
-            (row) =>
+            (
+              row
+            ) =>
               row.artist_id ===
               artist.id
           );
@@ -569,7 +714,8 @@ export default async function ScenePage({
         const location =
           locationRelationship
             ? artistLocationMap.get(
-                locationRelationship.location_id
+                locationRelationship
+                  .location_id
               ) ??
               null
             : null;
@@ -579,19 +725,25 @@ export default async function ScenePage({
             artistImageRows ??
             []
           ).filter(
-            (image) =>
+            (
+              image
+            ) =>
               image.artist_id ===
               artist.id
           );
 
         const image =
           artistImages.find(
-            (item) =>
+            (
+              item
+            ) =>
               item.image_type ===
               "profile"
           ) ??
           artistImages.find(
-            (item) =>
+            (
+              item
+            ) =>
               item.image_type ===
               "hero"
           ) ??
@@ -621,11 +773,16 @@ export default async function ScenePage({
 
         return {
           ...artist,
+
           is_primary_scene:
-            sceneRelationship?.is_primary ??
+            sceneRelationship
+              ?.is_primary ??
             false,
+
           genres,
+
           location,
+
           image_url:
             imageUrl,
         };
@@ -633,7 +790,10 @@ export default async function ScenePage({
     );
 
   artists.sort(
-    (a, b) => {
+    (
+      a,
+      b
+    ) => {
       if (
         a.is_primary_scene !==
         b.is_primary_scene
@@ -649,19 +809,231 @@ export default async function ScenePage({
     }
   );
 
+  // ============================================
+  // VENUES AT THIS SCENE LOCATION
+  // ============================================
+
+  let venues:
+    SceneVenue[] = [];
+
+  if (
+    scene.location_id
+  ) {
+    const {
+      data:
+        venueRows,
+      error:
+        venueError,
+    } = await supabase
+      .from(
+        "venues"
+      )
+      .select(
+        `
+        id,
+        name,
+        slug,
+        address_line_1,
+        address_line_2,
+        postal_code,
+        website_url,
+        active
+        `
+      )
+      .eq(
+        "location_id",
+        scene.location_id
+      )
+      .eq(
+        "active",
+        true
+      )
+      .order(
+        "name"
+      );
+
+    if (
+      venueError
+    ) {
+      throw new Error(
+        venueError.message
+      );
+    }
+
+    const venueIds =
+      (
+        venueRows ??
+        []
+      ).map(
+        (
+          venue
+        ) =>
+          venue.id
+      );
+
+    let upcomingEvents:
+      {
+        id: string;
+        title: string;
+        slug: string;
+
+        venue_id:
+          | string
+          | null;
+
+        start_at: string;
+
+        timezone:
+          | string
+          | null;
+
+        status:
+          | string
+          | null;
+      }[] = [];
+
+    if (
+      venueIds.length >
+      0
+    ) {
+      const {
+        data:
+          eventRows,
+        error:
+          eventError,
+      } = await supabase
+        .from(
+          "events"
+        )
+        .select(
+          `
+          id,
+          title,
+          slug,
+          venue_id,
+          start_at,
+          timezone,
+          status
+          `
+        )
+        .in(
+          "venue_id",
+          venueIds
+        )
+        .eq(
+          "published",
+          true
+        )
+        .gte(
+          "start_at",
+          new Date().toISOString()
+        )
+        .in(
+          "status",
+          [
+            "scheduled",
+            "postponed",
+          ]
+        )
+        .order(
+          "start_at",
+          {
+            ascending:
+              true,
+          }
+        );
+
+      if (
+        eventError
+      ) {
+        throw new Error(
+          eventError.message
+        );
+      }
+
+      upcomingEvents =
+        eventRows ??
+        [];
+    }
+
+    venues =
+      (
+        venueRows ??
+        []
+      ).map(
+        (
+          venue
+        ) => {
+        const venueEvents =
+          upcomingEvents.filter(
+            (
+              event
+            ) =>
+              event.venue_id ===
+              venue.id
+          );
+
+        return {
+          ...venue,
+
+          upcoming_event_count:
+            venueEvents.length,
+
+          next_event:
+            venueEvents[0] ??
+            null,
+        };
+      }
+    );
+
+    /*
+     * Show venues with upcoming events first.
+     * Remaining active venues stay alphabetical.
+     */
+    venues.sort(
+      (
+        a,
+        b
+      ) => {
+        if (
+          a.upcoming_event_count !==
+          b.upcoming_event_count
+        ) {
+          return (
+            b.upcoming_event_count -
+            a.upcoming_event_count
+          );
+        }
+
+        return a.name.localeCompare(
+          b.name
+        );
+      }
+    );
+  }
+
   const locationLabel =
     sceneLocation
       ? [
           sceneLocation.city ??
             sceneLocation.name,
+
           sceneLocation.region,
+
           sceneLocation.country,
         ]
           .filter(
             Boolean
           )
-          .join(", ")
+          .join(
+            ", "
+          )
       : null;
+
+  const sceneLocationName =
+    sceneLocation?.city ??
+    sceneLocation?.name ??
+    "This Location";
 
   return (
     <main className="min-h-screen bg-[#f3efe4] text-black">
@@ -696,7 +1068,7 @@ export default async function ScenePage({
         <div className="mx-auto grid max-w-6xl lg:grid-cols-[1.25fr_0.75fr]">
           {/* COPY */}
 
-          <div className="flex min-h-[500px] flex-col justify-between border-black p-6 sm:p-10 lg:min-h-[620px] lg:border-r-2">
+          <div className="flex flex-col justify-between border-black p-6 sm:p-10 lg:min-h-[620px] lg:border-r-2">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.25em]">
                 Scene
@@ -711,9 +1083,11 @@ export default async function ScenePage({
               )}
             </div>
 
-            <div className="py-12">
-              <h1 className="max-w-4xl break-words text-[clamp(3.25rem,9vw,8rem)] font-black uppercase leading-[0.84] tracking-[-0.055em]">
-                {scene.name}
+            <div className="py-10 sm:py-12">
+              <h1 className="max-w-4xl break-words text-[clamp(3rem,9vw,8rem)] font-black uppercase leading-[0.84] tracking-[-0.055em]">
+                {
+                  scene.name
+                }
               </h1>
 
               {scene.tagline && (
@@ -725,26 +1099,36 @@ export default async function ScenePage({
               )}
             </div>
 
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
               <Link
                 href="/"
-                className="border-2 border-black bg-black px-5 py-3 text-xs font-black uppercase text-white transition-colors hover:bg-white hover:text-black"
+                className="inline-flex w-full items-center justify-center border-2 border-black bg-black px-5 py-3 text-xs font-black uppercase text-white transition-colors hover:bg-white hover:text-black sm:w-auto"
               >
                 Explore on Map
               </Link>
 
               <a
                 href="#artists"
-                className="border-2 border-black bg-white px-5 py-3 text-xs font-black uppercase transition-colors hover:bg-black hover:text-white"
+                className="inline-flex w-full items-center justify-center border-2 border-black bg-white px-5 py-3 text-xs font-black uppercase transition-colors hover:bg-black hover:text-white sm:w-auto"
               >
                 Explore Artists
               </a>
+
+              {venues.length >
+                0 && (
+                <a
+                  href="#venues"
+                  className="inline-flex w-full items-center justify-center border-2 border-black bg-white px-5 py-3 text-xs font-black uppercase transition-colors hover:bg-black hover:text-white sm:w-auto"
+                >
+                  Explore Venues
+                </a>
+              )}
             </div>
           </div>
 
           {/* HERO IMAGE */}
 
-          <div className="relative min-h-[360px] overflow-hidden bg-black lg:min-h-[620px]">
+          <div className="relative aspect-[4/3] overflow-hidden bg-black lg:aspect-auto lg:min-h-[620px]">
             {sceneHeroUrl ? (
               <>
                 <img
@@ -756,20 +1140,23 @@ export default async function ScenePage({
                   }
                   className="absolute inset-0 h-full w-full object-cover"
                   style={{
-                    objectPosition: `${heroPositionX}% ${heroPositionY}%`,
+                    objectPosition:
+                      `${heroPositionX}% ${heroPositionY}%`,
                   }}
                 />
 
                 <div className="absolute inset-0 bg-black/15" />
               </>
             ) : (
-              <div className="flex h-full min-h-[360px] flex-col justify-end p-8 text-white lg:min-h-[620px]">
+              <div className="flex h-full flex-col justify-end p-8 text-white lg:min-h-[620px]">
                 <p className="text-xs font-black uppercase tracking-[0.2em]">
                   Underground Atlas
                 </p>
 
                 <p className="mt-3 max-w-sm text-4xl font-black uppercase leading-[0.9]">
-                  {scene.name}
+                  {
+                    scene.name
+                  }
                 </p>
               </div>
             )}
@@ -832,7 +1219,9 @@ export default async function ScenePage({
             </div>
 
             <p className="text-sm font-bold uppercase">
-              {artists.length}{" "}
+              {
+                artists.length
+              }{" "}
               {artists.length ===
               1
                 ? "Artist"
@@ -849,7 +1238,9 @@ export default async function ScenePage({
           ) : (
             <div className="mt-8 grid gap-6 md:grid-cols-2">
               {artists.map(
-                (artist) => (
+                (
+                  artist
+                ) => (
                   <article
                     key={
                       artist.id
@@ -910,6 +1301,7 @@ export default async function ScenePage({
                               artist
                                 .location
                                 .name,
+
                             artist
                               .location
                               .region,
@@ -975,6 +1367,163 @@ export default async function ScenePage({
       </section>
 
       {/* ========================================
+          VENUES
+      ======================================== */}
+
+      {sceneLocation && (
+        <section
+          id="venues"
+          className="border-b-2 border-black bg-white"
+        >
+          <div className="mx-auto max-w-6xl px-6 py-12 sm:px-10 sm:py-16">
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.2em]">
+                  Places
+                </p>
+
+                <h2 className="mt-2 text-4xl font-black uppercase sm:text-5xl">
+                  Venues in{" "}
+                  {
+                    sceneLocationName
+                  }
+                </h2>
+
+                <p className="mt-4 max-w-2xl text-sm leading-6 text-black/60">
+                  Active Atlas venues connected to the{" "}
+                  {
+                    sceneLocationName
+                  }{" "}
+                  area.
+                </p>
+              </div>
+
+              <p className="text-sm font-bold uppercase">
+                {
+                  venues.length
+                }{" "}
+                {venues.length ===
+                1
+                  ? "Venue"
+                  : "Venues"}
+              </p>
+            </div>
+
+            {!venues.length ? (
+              <div className="mt-8 border-2 border-black bg-[#f3efe4] p-8">
+                <p className="font-bold">
+                  No active Atlas venues are currently listed for this location.
+                </p>
+              </div>
+            ) : (
+              <div className="mt-8 grid gap-5 md:grid-cols-2">
+                {venues.map(
+                  (
+                    venue
+                  ) => (
+                    <article
+                      key={
+                        venue.id
+                      }
+                      className="border-2 border-black bg-[#f3efe4]"
+                    >
+                      <div className="p-6">
+                        <div className="flex flex-wrap items-start justify-between gap-4">
+                          <div>
+                            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-black/45">
+                              Venue
+                            </p>
+
+                            <Link
+                              href={`/venues/${venue.slug}`}
+                              className="mt-2 inline-block"
+                            >
+                              <h3 className="text-2xl font-black uppercase leading-tight hover:underline">
+                                {
+                                  venue.name
+                                }
+                              </h3>
+                            </Link>
+                          </div>
+
+                          <span className="border-2 border-black bg-white px-2.5 py-2 text-[9px] font-black uppercase">
+                            {
+                              venue.upcoming_event_count
+                            }{" "}
+                            {venue.upcoming_event_count ===
+                            1
+                              ? "Show"
+                              : "Shows"}
+                          </span>
+                        </div>
+
+                        {venue.address_line_1 && (
+                          <p className="mt-4 text-sm font-bold">
+                            {
+                              venue.address_line_1
+                            }
+                          </p>
+                        )}
+
+                        {venue.next_event && (
+                          <div className="mt-6 border-t-2 border-black pt-5">
+                            <p className="text-[9px] font-black uppercase tracking-[0.16em] text-black/45">
+                              Next Show
+                            </p>
+
+                            <Link
+                              href={`/events/${venue.next_event.slug}`}
+                              className="group mt-2 block"
+                            >
+                              <p className="text-lg font-black uppercase group-hover:underline">
+                                {
+                                  venue.next_event.title
+                                }
+                              </p>
+
+                              <p className="mt-2 text-xs font-bold uppercase tracking-[0.08em] text-black/55">
+                                {formatEventDate(
+                                  venue.next_event.start_at,
+                                  venue.next_event.timezone ??
+                                    "America/Los_Angeles"
+                                )}
+                              </p>
+                            </Link>
+                          </div>
+                        )}
+
+                        <div className="mt-6 flex flex-col gap-2 border-t-2 border-black pt-4 sm:flex-row sm:flex-wrap">
+                          <Link
+                            href={`/venues/${venue.slug}`}
+                            className="inline-flex w-full items-center justify-center border-2 border-black bg-black px-4 py-2.5 text-[10px] font-black uppercase tracking-[0.1em] text-white transition-colors hover:bg-white hover:text-black sm:w-auto"
+                          >
+                            Explore Venue →
+                          </Link>
+
+                          {venue.website_url && (
+                            <a
+                              href={
+                                venue.website_url
+                              }
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex w-full items-center justify-center border-2 border-black bg-white px-4 py-2.5 text-[10px] font-black uppercase tracking-[0.1em] transition-colors hover:bg-black hover:text-white sm:w-auto"
+                            >
+                              Website ↗
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    </article>
+                  )
+                )}
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* ========================================
           LOCATION
       ======================================== */}
 
@@ -987,8 +1536,10 @@ export default async function ScenePage({
               </p>
 
               <h2 className="mt-3 text-4xl font-black uppercase sm:text-5xl">
-                {sceneLocation.city ??
-                  sceneLocation.name}
+                {
+                  sceneLocation.city ??
+                  sceneLocation.name
+                }
               </h2>
 
               <p className="mt-3 text-lg font-bold">
@@ -996,24 +1547,13 @@ export default async function ScenePage({
                   sceneLocation.region,
                   sceneLocation.country,
                 ]
-                  .filter(Boolean)
-                  .join(", ")}
+                  .filter(
+                    Boolean
+                  )
+                  .join(
+                    ", "
+                  )}
               </p>
-
-              {sceneLocation.latitude !=
-                null &&
-                sceneLocation.longitude !=
-                  null && (
-                  <p className="mt-5 text-xs font-bold uppercase tracking-[0.12em] text-black/50">
-                    {
-                      sceneLocation.latitude
-                    }
-                    ,{" "}
-                    {
-                      sceneLocation.longitude
-                    }
-                  </p>
-                )}
             </div>
 
             <div className="flex flex-col justify-between gap-8 bg-[#f3efe4] p-6 sm:p-10">
@@ -1024,15 +1564,17 @@ export default async function ScenePage({
 
                 <p className="mt-4 max-w-md text-lg leading-7">
                   Return to the atlas to explore artists and scenes around{" "}
-                  {sceneLocation.city ??
-                    sceneLocation.name}
+                  {
+                    sceneLocation.city ??
+                    sceneLocation.name
+                  }
                   .
                 </p>
               </div>
 
               <Link
                 href="/"
-                className="inline-flex w-fit border-2 border-black bg-black px-5 py-3 text-xs font-black uppercase text-white transition-colors hover:bg-white hover:text-black"
+                className="inline-flex w-full items-center justify-center border-2 border-black bg-black px-5 py-3 text-xs font-black uppercase text-white transition-colors hover:bg-white hover:text-black sm:w-fit"
               >
                 Explore on Map →
               </Link>

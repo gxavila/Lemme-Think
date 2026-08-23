@@ -4,26 +4,52 @@ import { createClient } from "@/lib/supabase/server";
 export const instant = false;
 
 export default async function HomePage() {
-  const supabase = await createClient();
+  const supabase =
+    await createClient();
 
-  const {
-    data: genres,
-    error: genresError,
-  } = await supabase
-    .from("genres")
-    .select(
-      `
-      id,
-      name,
-      slug
-      `
-    )
-    .eq("active", true)
-    .order("name");
+  const [
+    genresResult,
+    locationsResult,
+  ] = await Promise.all([
+    supabase
+      .from("genres")
+      .select(
+        `
+        id,
+        name,
+        slug
+        `
+      )
+      .eq(
+        "active",
+        true
+      )
+      .order("name"),
 
-  if (genresError) {
+    supabase
+      .from("locations")
+      .select(
+        `
+        id,
+        name,
+        slug,
+        city,
+        region,
+        country
+        `
+      )
+      .order("name"),
+  ]);
+
+  if (genresResult.error) {
     throw new Error(
-      genresError.message
+      genresResult.error.message
+    );
+  }
+
+  if (locationsResult.error) {
+    throw new Error(
+      locationsResult.error.message
     );
   }
 
@@ -58,7 +84,14 @@ export default async function HomePage() {
       ====================================== */}
 
       <AtlasExplorer
-        genres={genres ?? []}
+        genres={
+          genresResult.data ??
+          []
+        }
+        locations={
+          locationsResult.data ??
+          []
+        }
       />
 
       {/* ======================================

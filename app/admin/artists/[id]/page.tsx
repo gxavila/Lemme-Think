@@ -14,11 +14,23 @@ type EditArtistPageProps = {
   }>;
 };
 
+const ASSOCIATION_TYPES = [
+  "Shared Members",
+  "Related Project",
+  "Side Project",
+  "Collaborator",
+  "Same Collective",
+  "Frequently Perform Together",
+  "Other",
+];
+
 async function requireContentManager() {
   const supabase =
     await createClient();
 
-  const { data: claimsData } =
+  const {
+    data: claimsData,
+  } =
     await supabase.auth.getClaims();
 
   const userId =
@@ -41,7 +53,10 @@ async function requireContentManager() {
     profileError ||
     !profile ||
     !profile.active ||
-    !["admin", "editor"].includes(
+    ![
+      "admin",
+      "editor",
+    ].includes(
       profile.role
     )
   ) {
@@ -50,6 +65,10 @@ async function requireContentManager() {
 
   return supabase;
 }
+
+// ============================================
+// UPDATE ARTIST
+// ============================================
 
 async function updateArtist(
   formData: FormData
@@ -72,62 +91,92 @@ async function updateArtist(
   ).trim();
 
   const status = String(
-    formData.get("status") ?? "active"
+    formData.get("status") ??
+      "active"
   );
 
   const artistType = String(
-    formData.get("artist_type") ?? "band"
+    formData.get(
+      "artist_type"
+    ) ?? "band"
   );
 
   const bioShort = String(
-    formData.get("bio_short") ?? ""
+    formData.get(
+      "bio_short"
+    ) ?? ""
   ).trim();
 
   const bioLong = String(
-    formData.get("bio_long") ?? ""
+    formData.get(
+      "bio_long"
+    ) ?? ""
   ).trim();
 
-  const yearStartedRaw = String(
-    formData.get("year_started") ?? ""
-  ).trim();
+  const yearStartedRaw =
+    String(
+      formData.get(
+        "year_started"
+      ) ?? ""
+    ).trim();
 
-  const yearEndedRaw = String(
-    formData.get("year_ended") ?? ""
-  ).trim();
+  const yearEndedRaw =
+    String(
+      formData.get(
+        "year_ended"
+      ) ?? ""
+    ).trim();
 
-  const locationId = String(
-    formData.get("location_id") ?? ""
-  );
+  const locationId =
+    String(
+      formData.get(
+        "location_id"
+      ) ?? ""
+    );
 
-  // ============================================
-  // MULTIPLE SCENES
-  // ============================================
+  const sceneIds =
+    formData
+      .getAll(
+        "scene_ids"
+      )
+      .map(
+        (value) =>
+          String(value)
+      );
 
-  const sceneIds = formData
-    .getAll("scene_ids")
-    .map((value) => String(value));
+  const primarySceneId =
+    String(
+      formData.get(
+        "primary_scene_id"
+      ) ?? ""
+    );
 
-  const primarySceneId = String(
-    formData.get("primary_scene_id") ?? ""
-  );
+  const genreIds =
+    formData
+      .getAll(
+        "genre_ids"
+      )
+      .map(
+        (value) =>
+          String(value)
+      );
 
-  // ============================================
-  // GENRES
-  // ============================================
-
-  const genreIds = formData
-    .getAll("genre_ids")
-    .map((value) => String(value));
-
-  const primaryGenreId = String(
-    formData.get("primary_genre_id") ?? ""
-  );
+  const primaryGenreId =
+    String(
+      formData.get(
+        "primary_genre_id"
+      ) ?? ""
+    );
 
   const published =
-    formData.get("published") === "on";
+    formData.get(
+      "published"
+    ) === "on";
 
   const featured =
-    formData.get("featured") === "on";
+    formData.get(
+      "featured"
+    ) === "on";
 
   if (
     !artistId ||
@@ -139,26 +188,22 @@ async function updateArtist(
     );
   }
 
-  // ============================================
-  // VALIDATE PRIMARY SCENE
-  // ============================================
-
   if (
     primarySceneId &&
-    !sceneIds.includes(primarySceneId)
+    !sceneIds.includes(
+      primarySceneId
+    )
   ) {
     throw new Error(
       "The primary scene must also be selected as an associated scene."
     );
   }
 
-  // ============================================
-  // VALIDATE PRIMARY GENRE
-  // ============================================
-
   if (
     primaryGenreId &&
-    !genreIds.includes(primaryGenreId)
+    !genreIds.includes(
+      primaryGenreId
+    )
   ) {
     throw new Error(
       "The primary genre must also be selected as an artist genre."
@@ -177,25 +222,37 @@ async function updateArtist(
       name,
       slug,
       status,
-      artist_type: artistType,
+      artist_type:
+        artistType,
       bio_short:
-        bioShort || null,
+        bioShort ||
+        null,
       bio_long:
-        bioLong || null,
+        bioLong ||
+        null,
       year_started:
         yearStartedRaw
-          ? Number(yearStartedRaw)
+          ? Number(
+              yearStartedRaw
+            )
           : null,
       year_ended:
         yearEndedRaw
-          ? Number(yearEndedRaw)
+          ? Number(
+              yearEndedRaw
+            )
           : null,
       published,
       featured,
     })
-    .eq("id", artistId);
+    .eq(
+      "id",
+      artistId
+    );
 
-  if (artistError) {
+  if (
+    artistError
+  ) {
     throw new Error(
       artistError.message
     );
@@ -206,16 +263,21 @@ async function updateArtist(
   // ============================================
 
   const {
-    error: deleteLocationsError,
+    error:
+      deleteLocationsError,
   } = await supabase
-    .from("artist_locations")
+    .from(
+      "artist_locations"
+    )
     .delete()
     .eq(
       "artist_id",
       artistId
     );
 
-  if (deleteLocationsError) {
+  if (
+    deleteLocationsError
+  ) {
     throw new Error(
       deleteLocationsError.message
     );
@@ -223,17 +285,26 @@ async function updateArtist(
 
   if (locationId) {
     const {
-      error: locationError,
+      error:
+        locationError,
     } = await supabase
-      .from("artist_locations")
+      .from(
+        "artist_locations"
+      )
       .insert({
-        artist_id: artistId,
-        location_id: locationId,
-        relationship: "based_in",
-        is_primary: true,
+        artist_id:
+          artistId,
+        location_id:
+          locationId,
+        relationship:
+          "based_in",
+        is_primary:
+          true,
       });
 
-    if (locationError) {
+    if (
+      locationError
+    ) {
       throw new Error(
         locationError.message
       );
@@ -241,31 +312,41 @@ async function updateArtist(
   }
 
   // ============================================
-  // REPLACE SCENE RELATIONSHIPS
+  // REPLACE SCENES
   // ============================================
 
   const {
-    error: deleteScenesError,
+    error:
+      deleteScenesError,
   } = await supabase
-    .from("artist_scenes")
+    .from(
+      "artist_scenes"
+    )
     .delete()
     .eq(
       "artist_id",
       artistId
     );
 
-  if (deleteScenesError) {
+  if (
+    deleteScenesError
+  ) {
     throw new Error(
       deleteScenesError.message
     );
   }
 
-  if (sceneIds.length > 0) {
+  if (
+    sceneIds.length >
+    0
+  ) {
     const sceneRows =
       sceneIds.map(
         (sceneId) => ({
-          artist_id: artistId,
-          scene_id: sceneId,
+          artist_id:
+            artistId,
+          scene_id:
+            sceneId,
           is_primary:
             sceneId ===
             primarySceneId,
@@ -273,12 +354,19 @@ async function updateArtist(
       );
 
     const {
-      error: scenesError,
+      error:
+        scenesError,
     } = await supabase
-      .from("artist_scenes")
-      .insert(sceneRows);
+      .from(
+        "artist_scenes"
+      )
+      .insert(
+        sceneRows
+      );
 
-    if (scenesError) {
+    if (
+      scenesError
+    ) {
       throw new Error(
         scenesError.message
       );
@@ -290,27 +378,37 @@ async function updateArtist(
   // ============================================
 
   const {
-    error: deleteGenresError,
+    error:
+      deleteGenresError,
   } = await supabase
-    .from("artist_genres")
+    .from(
+      "artist_genres"
+    )
     .delete()
     .eq(
       "artist_id",
       artistId
     );
 
-  if (deleteGenresError) {
+  if (
+    deleteGenresError
+  ) {
     throw new Error(
       deleteGenresError.message
     );
   }
 
-  if (genreIds.length > 0) {
+  if (
+    genreIds.length >
+    0
+  ) {
     const genreRows =
       genreIds.map(
         (genreId) => ({
-          artist_id: artistId,
-          genre_id: genreId,
+          artist_id:
+            artistId,
+          genre_id:
+            genreId,
           is_primary:
             genreId ===
             primaryGenreId,
@@ -318,12 +416,19 @@ async function updateArtist(
       );
 
     const {
-      error: genresError,
+      error:
+        genresError,
     } = await supabase
-      .from("artist_genres")
-      .insert(genreRows);
+      .from(
+        "artist_genres"
+      )
+      .insert(
+        genreRows
+      );
 
-    if (genresError) {
+    if (
+      genresError
+    ) {
       throw new Error(
         genresError.message
       );
@@ -335,6 +440,332 @@ async function updateArtist(
   );
 }
 
+// ============================================
+// ADD ARTIST ASSOCIATION
+// ============================================
+
+async function addArtistAssociation(
+  formData: FormData
+) {
+  "use server";
+
+  const supabase =
+    await requireContentManager();
+
+  const artistId =
+    String(
+      formData.get(
+        "artist_id"
+      ) ?? ""
+    );
+
+  const associatedArtistId =
+    String(
+      formData.get(
+        "associated_artist_id"
+      ) ?? ""
+    );
+
+  const relationshipChoice =
+    String(
+      formData.get(
+        "relationship"
+      ) ?? ""
+    ).trim();
+
+  const customRelationship =
+    String(
+      formData.get(
+        "custom_relationship"
+      ) ?? ""
+    ).trim();
+
+  if (
+    !artistId ||
+    !associatedArtistId
+  ) {
+    throw new Error(
+      "Both artists are required."
+    );
+  }
+
+  if (
+    artistId ===
+    associatedArtistId
+  ) {
+    throw new Error(
+      "An artist cannot be associated with itself."
+    );
+  }
+
+  const relationship =
+    relationshipChoice ===
+    "Other"
+      ? customRelationship
+      : relationshipChoice;
+
+  if (
+    !relationship
+  ) {
+    throw new Error(
+      "A relationship is required."
+    );
+  }
+
+  // Check all associations involving the current artist.
+  // This catches both A → B and B → A.
+
+  const {
+    data:
+      existingAssociations,
+    error:
+      existingError,
+  } = await supabase
+    .from(
+      "artist_associations"
+    )
+    .select(
+      `
+      artist_id,
+      associated_artist_id
+      `
+    )
+    .or(
+      `artist_id.eq.${artistId},associated_artist_id.eq.${artistId}`
+    );
+
+  if (
+    existingError
+  ) {
+    throw new Error(
+      existingError.message
+    );
+  }
+
+  const duplicate =
+    (
+      existingAssociations ??
+      []
+    ).some(
+      (association) =>
+        (
+          association.artist_id ===
+            artistId &&
+          association.associated_artist_id ===
+            associatedArtistId
+        ) ||
+        (
+          association.artist_id ===
+            associatedArtistId &&
+          association.associated_artist_id ===
+            artistId
+        )
+    );
+
+  if (duplicate) {
+    throw new Error(
+      "These artists are already associated."
+    );
+  }
+
+  const {
+    error,
+  } = await supabase
+    .from(
+      "artist_associations"
+    )
+    .insert({
+      artist_id:
+        artistId,
+      associated_artist_id:
+        associatedArtistId,
+      relationship,
+    });
+
+  if (error) {
+    throw new Error(
+      error.message
+    );
+  }
+
+  redirect(
+    `/admin/artists/${artistId}`
+  );
+}
+
+
+// ============================================
+// UPDATE ARTIST ASSOCIATION
+// ============================================
+
+async function updateArtistAssociation(
+  formData: FormData
+) {
+  "use server";
+
+  const supabase =
+    await requireContentManager();
+
+  const currentArtistId =
+    String(
+      formData.get(
+        "current_artist_id"
+      ) ?? ""
+    );
+
+  const sourceArtistId =
+    String(
+      formData.get(
+        "source_artist_id"
+      ) ?? ""
+    );
+
+  const associatedArtistId =
+    String(
+      formData.get(
+        "associated_artist_id"
+      ) ?? ""
+    );
+
+  const relationshipChoice =
+    String(
+      formData.get(
+        "relationship"
+      ) ?? ""
+    ).trim();
+
+  const customRelationship =
+    String(
+      formData.get(
+        "custom_relationship"
+      ) ?? ""
+    ).trim();
+
+  if (
+    !currentArtistId ||
+    !sourceArtistId ||
+    !associatedArtistId
+  ) {
+    throw new Error(
+      "Missing association information."
+    );
+  }
+
+  const relationship =
+    relationshipChoice ===
+    "Other"
+      ? customRelationship
+      : relationshipChoice;
+
+  if (!relationship) {
+    throw new Error(
+      "A relationship is required."
+    );
+  }
+
+  const {
+    error,
+  } = await supabase
+    .from(
+      "artist_associations"
+    )
+    .update({
+      relationship,
+    })
+    .eq(
+      "artist_id",
+      sourceArtistId
+    )
+    .eq(
+      "associated_artist_id",
+      associatedArtistId
+    );
+
+  if (error) {
+    throw new Error(
+      error.message
+    );
+  }
+
+  redirect(
+    `/admin/artists/${currentArtistId}`
+  );
+}
+
+// ============================================
+// DELETE ARTIST ASSOCIATION
+// ============================================
+
+async function deleteArtistAssociation(
+  formData: FormData
+) {
+  "use server";
+
+  const supabase =
+    await requireContentManager();
+
+  const currentArtistId =
+    String(
+      formData.get(
+        "current_artist_id"
+      ) ?? ""
+    );
+
+  const sourceArtistId =
+    String(
+      formData.get(
+        "source_artist_id"
+      ) ?? ""
+    );
+
+  const associatedArtistId =
+    String(
+      formData.get(
+        "associated_artist_id"
+      ) ?? ""
+    );
+
+  if (
+    !currentArtistId ||
+    !sourceArtistId ||
+    !associatedArtistId
+  ) {
+    throw new Error(
+      "Missing association information."
+    );
+  }
+
+  const {
+    error,
+  } = await supabase
+    .from(
+      "artist_associations"
+    )
+    .delete()
+    .eq(
+      "artist_id",
+      sourceArtistId
+    )
+    .eq(
+      "associated_artist_id",
+      associatedArtistId
+    );
+
+  if (error) {
+    throw new Error(
+      error.message
+    );
+  }
+
+  redirect(
+    `/admin/artists/${currentArtistId}`
+  );
+}
+
+// ============================================
+// DELETE ARTIST
+// ============================================
+
 async function deleteArtist(
   formData: FormData
 ) {
@@ -343,19 +774,26 @@ async function deleteArtist(
   const supabase =
     await requireContentManager();
 
-  const artistId = String(
-    formData.get("artist_id") ?? ""
-  );
+  const artistId =
+    String(
+      formData.get(
+        "artist_id"
+      ) ?? ""
+    );
 
-  const artistName = String(
-    formData.get("artist_name") ?? ""
-  );
+  const artistName =
+    String(
+      formData.get(
+        "artist_name"
+      ) ?? ""
+    );
 
-  const confirmation = String(
-    formData.get(
-      "delete_confirmation"
-    ) ?? ""
-  ).trim();
+  const confirmation =
+    String(
+      formData.get(
+        "delete_confirmation"
+      ) ?? ""
+    ).trim();
 
   if (!artistId) {
     throw new Error(
@@ -372,14 +810,15 @@ async function deleteArtist(
     );
   }
 
-  const { error } =
-    await supabase
-      .from("artists")
-      .delete()
-      .eq(
-        "id",
-        artistId
-      );
+  const {
+    error,
+  } = await supabase
+    .from("artists")
+    .delete()
+    .eq(
+      "id",
+      artistId
+    );
 
   if (error) {
     throw new Error(
@@ -391,6 +830,10 @@ async function deleteArtist(
     "/admin/artists"
   );
 }
+
+// ============================================
+// PAGE
+// ============================================
 
 export default async function EditArtistPage({
   params,
@@ -407,7 +850,8 @@ export default async function EditArtistPage({
 
   const {
     data: artist,
-    error: artistError,
+    error:
+      artistError,
   } = await supabase
     .from("artists")
     .select(
@@ -443,7 +887,8 @@ export default async function EditArtistPage({
   // ============================================
 
   const {
-    data: artistLocation,
+    data:
+      artistLocation,
   } = await supabase
     .from(
       "artist_locations"
@@ -466,8 +911,10 @@ export default async function EditArtistPage({
   // ============================================
 
   const {
-    data: artistScenes,
-    error: artistScenesError,
+    data:
+      artistScenes,
+    error:
+      artistScenesError,
   } = await supabase
     .from(
       "artist_scenes"
@@ -483,7 +930,9 @@ export default async function EditArtistPage({
       id
     );
 
-  if (artistScenesError) {
+  if (
+    artistScenesError
+  ) {
     throw new Error(
       artistScenesError.message
     );
@@ -506,7 +955,8 @@ export default async function EditArtistPage({
   // ============================================
 
   const {
-    data: artistGenres,
+    data:
+      artistGenres,
   } = await supabase
     .from(
       "artist_genres"
@@ -573,7 +1023,9 @@ export default async function EditArtistPage({
     )
     .order("name");
 
-  if (scenesError) {
+  if (
+    scenesError
+  ) {
     throw new Error(
       scenesError.message
     );
@@ -600,6 +1052,163 @@ export default async function EditArtistPage({
     )
     .order("name");
 
+  // ============================================
+  // ALL OTHER ARTISTS
+  // ============================================
+
+  const {
+    data: otherArtists,
+    error:
+      otherArtistsError,
+  } = await supabase
+    .from("artists")
+    .select(
+      `
+      id,
+      name,
+      slug,
+      published
+      `
+    )
+    .neq(
+      "id",
+      id
+    )
+    .order(
+      "name"
+    );
+
+  if (
+    otherArtistsError
+  ) {
+    throw new Error(
+      otherArtistsError.message
+    );
+  }
+
+  // ============================================
+  // CURRENT ASSOCIATIONS
+  // ============================================
+
+  const {
+    data:
+      associationRows,
+    error:
+      associationsError,
+  } = await supabase
+    .from(
+      "artist_associations"
+    )
+    .select(
+      `
+      artist_id,
+      associated_artist_id,
+      relationship,
+      created_at
+      `
+    )
+    .or(
+      `artist_id.eq.${id},associated_artist_id.eq.${id}`
+    )
+    .order(
+      "created_at"
+    );
+
+  if (
+    associationsError
+  ) {
+    throw new Error(
+      associationsError.message
+    );
+  }
+
+  const relatedArtistIds =
+    (
+      associationRows ??
+      []
+    ).map(
+      (association) =>
+        association.artist_id ===
+        id
+          ? association.associated_artist_id
+          : association.artist_id
+    );
+
+  let relatedArtists:
+    {
+      id: string;
+      name: string;
+      slug: string;
+      published: boolean;
+    }[] = [];
+
+  if (
+    relatedArtistIds.length >
+    0
+  ) {
+    const {
+      data:
+        relatedArtistRows,
+      error:
+        relatedArtistsError,
+    } = await supabase
+      .from("artists")
+      .select(
+        `
+        id,
+        name,
+        slug,
+        published
+        `
+      )
+      .in(
+        "id",
+        relatedArtistIds
+      );
+
+    if (
+      relatedArtistsError
+    ) {
+      throw new Error(
+        relatedArtistsError.message
+      );
+    }
+
+    relatedArtists =
+      relatedArtistRows ??
+      [];
+  }
+
+  const associations =
+    (
+      associationRows ??
+      []
+    ).map(
+      (association) => {
+        const relatedId =
+          association.artist_id ===
+          id
+            ? association.associated_artist_id
+            : association.artist_id;
+
+        const relatedArtist =
+          relatedArtists.find(
+            (
+              candidate
+            ) =>
+              candidate.id ===
+              relatedId
+          );
+
+        return {
+          ...association,
+          related_artist:
+            relatedArtist ??
+            null,
+        };
+      }
+    );
+
   return (
     <main className="min-h-screen bg-[#f3efe4] text-black">
       {/* ========================================
@@ -618,7 +1227,9 @@ export default async function EditArtistPage({
 
             <h1 className="mt-2 text-3xl font-black uppercase">
               Edit{" "}
-              {artist.name}
+              {
+                artist.name
+              }
             </h1>
           </div>
 
@@ -657,6 +1268,10 @@ export default async function EditArtistPage({
       </header>
 
       <section className="mx-auto max-w-4xl px-6 py-10">
+        {/* ======================================
+            MAIN ARTIST FORM
+        ====================================== */}
+
         <form
           action={
             updateArtist
@@ -671,9 +1286,7 @@ export default async function EditArtistPage({
             }
           />
 
-          {/* ==================================
-              BASIC INFORMATION
-          ================================== */}
+          {/* BASIC INFORMATION */}
 
           <section className="border-2 border-black bg-white p-6">
             <h2 className="text-xl font-black uppercase">
@@ -818,9 +1431,7 @@ export default async function EditArtistPage({
             </div>
           </section>
 
-          {/* ==================================
-              BIOGRAPHY
-          ================================== */}
+          {/* BIOGRAPHY */}
 
           <section className="border-2 border-black bg-white p-6">
             <h2 className="text-xl font-black uppercase">
@@ -860,9 +1471,7 @@ export default async function EditArtistPage({
             </label>
           </section>
 
-          {/* ==================================
-              LOCATION
-          ================================== */}
+          {/* LOCATION */}
 
           <section className="border-2 border-black bg-white p-6">
             <h2 className="text-xl font-black uppercase">
@@ -891,7 +1500,9 @@ export default async function EditArtistPage({
                 </option>
 
                 {locations?.map(
-                  (location) => (
+                  (
+                    location
+                  ) => (
                     <option
                       key={
                         location.id
@@ -905,8 +1516,12 @@ export default async function EditArtistPage({
                         location.region,
                         location.country,
                       ]
-                        .filter(Boolean)
-                        .join(", ")}
+                        .filter(
+                          Boolean
+                        )
+                        .join(
+                          ", "
+                        )}
                     </option>
                   )
                 )}
@@ -914,9 +1529,7 @@ export default async function EditArtistPage({
             </label>
           </section>
 
-          {/* ==================================
-              SCENES
-          ================================== */}
+          {/* SCENES */}
 
           <section className="border-2 border-black bg-white p-6">
             <h2 className="text-xl font-black uppercase">
@@ -934,7 +1547,9 @@ export default async function EditArtistPage({
             ) : (
               <div className="mt-6 grid gap-3 sm:grid-cols-2">
                 {scenes.map(
-                  (scene) => (
+                  (
+                    scene
+                  ) => (
                     <label
                       key={
                         scene.id
@@ -947,13 +1562,17 @@ export default async function EditArtistPage({
                         value={
                           scene.id
                         }
-                        defaultChecked={selectedSceneIds.includes(
-                          scene.id
-                        )}
+                        defaultChecked={
+                          selectedSceneIds.includes(
+                            scene.id
+                          )
+                        }
                       />
 
                       <span className="font-bold">
-                        {scene.name}
+                        {
+                          scene.name
+                        }
 
                         {!scene.published && (
                           <span className="ml-2 text-xs font-normal uppercase text-black/50">
@@ -984,7 +1603,9 @@ export default async function EditArtistPage({
                 </option>
 
                 {scenes?.map(
-                  (scene) => (
+                  (
+                    scene
+                  ) => (
                     <option
                       key={
                         scene.id
@@ -993,7 +1614,9 @@ export default async function EditArtistPage({
                         scene.id
                       }
                     >
-                      {scene.name}
+                      {
+                        scene.name
+                      }
                     </option>
                   )
                 )}
@@ -1005,9 +1628,7 @@ export default async function EditArtistPage({
             </p>
           </section>
 
-          {/* ==================================
-              GENRES
-          ================================== */}
+          {/* GENRES */}
 
           <section className="border-2 border-black bg-white p-6">
             <h2 className="text-xl font-black uppercase">
@@ -1020,7 +1641,9 @@ export default async function EditArtistPage({
 
             <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {genres?.map(
-                (genre) => (
+                (
+                  genre
+                ) => (
                   <label
                     key={
                       genre.id
@@ -1033,9 +1656,11 @@ export default async function EditArtistPage({
                       value={
                         genre.id
                       }
-                      defaultChecked={selectedGenreIds.includes(
-                        genre.id
-                      )}
+                      defaultChecked={
+                        selectedGenreIds.includes(
+                          genre.id
+                        )
+                      }
                     />
 
                     <span className="font-bold">
@@ -1065,7 +1690,9 @@ export default async function EditArtistPage({
                 </option>
 
                 {genres?.map(
-                  (genre) => (
+                  (
+                    genre
+                  ) => (
                     <option
                       key={
                         genre.id
@@ -1084,9 +1711,7 @@ export default async function EditArtistPage({
             </label>
           </section>
 
-          {/* ==================================
-              PUBLISHING
-          ================================== */}
+          {/* PUBLISHING */}
 
           <section className="border-2 border-black bg-white p-6">
             <h2 className="text-xl font-black uppercase">
@@ -1142,6 +1767,355 @@ export default async function EditArtistPage({
         </form>
 
         {/* ======================================
+            ASSOCIATED ARTISTS
+        ====================================== */}
+
+        <section className="mt-16 border-2 border-black bg-white p-6">
+          <h2 className="text-xl font-black uppercase">
+            Associated Artists
+          </h2>
+
+          <p className="mt-2 max-w-2xl text-sm text-black/60">
+            Use associations for direct artist relationships such as shared members, side projects, collaborators, or related projects. Scene membership is managed separately.
+          </p>
+
+          {/* ADD ASSOCIATION */}
+
+          {!otherArtists?.length ? (
+            <p className="mt-6 text-sm text-black/60">
+              No other artists are available.
+            </p>
+          ) : (
+            <form
+              action={
+                addArtistAssociation
+              }
+              className="mt-6 space-y-5 border-2 border-black p-5"
+            >
+              <input
+                type="hidden"
+                name="artist_id"
+                value={
+                  artist.id
+                }
+              />
+
+              <div className="grid gap-5 sm:grid-cols-2">
+                <label className="block">
+                  <span className="text-xs font-bold uppercase tracking-[0.15em]">
+                    Artist
+                  </span>
+
+                  <select
+                    name="associated_artist_id"
+                    required
+                    defaultValue=""
+                    className="mt-2 w-full border-2 border-black px-3 py-2"
+                  >
+                    <option
+                      value=""
+                      disabled
+                    >
+                      Select an artist
+                    </option>
+
+                    {otherArtists.map(
+                      (
+                        otherArtist
+                      ) => (
+                        <option
+                          key={
+                            otherArtist.id
+                          }
+                          value={
+                            otherArtist.id
+                          }
+                        >
+                          {
+                            otherArtist.name
+                          }
+                          {!otherArtist.published
+                            ? " (Draft)"
+                            : ""}
+                        </option>
+                      )
+                    )}
+                  </select>
+                </label>
+
+                <label className="block">
+                  <span className="text-xs font-bold uppercase tracking-[0.15em]">
+                    Relationship
+                  </span>
+
+                  <select
+                    name="relationship"
+                    required
+                    defaultValue=""
+                    className="mt-2 w-full border-2 border-black px-3 py-2"
+                  >
+                    <option
+                      value=""
+                      disabled
+                    >
+                      Select relationship
+                    </option>
+
+                    {ASSOCIATION_TYPES.map(
+                      (
+                        type
+                      ) => (
+                        <option
+                          key={
+                            type
+                          }
+                          value={
+                            type
+                          }
+                        >
+                          {
+                            type
+                          }
+                        </option>
+                      )
+                    )}
+                  </select>
+                </label>
+              </div>
+
+              <label className="block">
+                <span className="text-xs font-bold uppercase tracking-[0.15em]">
+                  Custom Relationship
+                </span>
+
+                <input
+                  name="custom_relationship"
+                  placeholder="Use only when Relationship is Other"
+                  className="mt-2 w-full border-2 border-black px-3 py-2"
+                />
+
+                <span className="mt-2 block text-xs text-black/55">
+                  Example: Former member&apos;s project
+                </span>
+              </label>
+
+              <button
+                type="submit"
+                className="border-2 border-black bg-black px-5 py-3 text-xs font-black uppercase text-white transition-colors hover:bg-white hover:text-black"
+              >
+                Add Association
+              </button>
+            </form>
+          )}
+
+          {/* EXISTING ASSOCIATIONS */}
+
+          <div className="mt-8">
+            <p className="text-xs font-black uppercase tracking-[0.15em]">
+              Current Associations
+            </p>
+
+            {!associations.length ? (
+              <p className="mt-4 text-sm text-black/60">
+                No associated artists yet.
+              </p>
+            ) : (
+              <div className="mt-4 divide-y-2 divide-black border-y-2 border-black">
+                {associations.map(
+                  (
+                    association
+                  ) => (
+                    <div
+                      key={`${association.artist_id}-${association.associated_artist_id}`}
+                      className="flex flex-col gap-4 py-5 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div>
+                        <p className="text-lg font-black uppercase">
+                          {association.related_artist?.name ??
+                            "Unknown Artist"}
+                        </p>
+
+                        <p className="mt-1 text-xs font-bold uppercase tracking-[0.12em] text-black/55">
+                          {association.relationship ??
+                            "Associated Artist"}
+                        </p>
+
+                        {association.related_artist &&
+                          !association.related_artist.published && (
+                            <p className="mt-2 text-[10px] font-black uppercase tracking-[0.12em] text-black/45">
+                              Draft Artist
+                            </p>
+                          )}
+                      </div>
+
+                      <div className="w-full sm:w-auto">
+                        <form
+                          action={
+                            updateArtistAssociation
+                          }
+                          className="grid gap-3 sm:min-w-[360px]"
+                        >
+                          <input
+                            type="hidden"
+                            name="current_artist_id"
+                            value={
+                              artist.id
+                            }
+                          />
+
+                          <input
+                            type="hidden"
+                            name="source_artist_id"
+                            value={
+                              association.artist_id
+                            }
+                          />
+
+                          <input
+                            type="hidden"
+                            name="associated_artist_id"
+                            value={
+                              association.associated_artist_id
+                            }
+                          />
+
+                          <label className="block">
+                            <span className="text-[10px] font-black uppercase tracking-[0.12em] text-black/55">
+                              Relationship
+                            </span>
+
+                            <select
+                              name="relationship"
+                              defaultValue={
+                                ASSOCIATION_TYPES
+                                  .filter(
+                                    (type) =>
+                                      type !==
+                                      "Other"
+                                  )
+                                  .includes(
+                                    association.relationship ??
+                                      ""
+                                  )
+                                  ? association.relationship ??
+                                    ""
+                                  : "Other"
+                              }
+                              className="mt-2 w-full border-2 border-black px-3 py-2 text-sm"
+                            >
+                              {ASSOCIATION_TYPES.map(
+                                (
+                                  type
+                                ) => (
+                                  <option
+                                    key={
+                                      type
+                                    }
+                                    value={
+                                      type
+                                    }
+                                  >
+                                    {
+                                      type
+                                    }
+                                  </option>
+                                )
+                              )}
+                            </select>
+                          </label>
+
+                          <label className="block">
+                            <span className="text-[10px] font-black uppercase tracking-[0.12em] text-black/55">
+                              Custom Relationship
+                            </span>
+
+                            <input
+                              name="custom_relationship"
+                              defaultValue={
+                                association.relationship &&
+                                !ASSOCIATION_TYPES
+                                  .filter(
+                                    (type) =>
+                                      type !==
+                                      "Other"
+                                  )
+                                  .includes(
+                                    association.relationship
+                                  )
+                                  ? association.relationship
+                                  : ""
+                              }
+                              placeholder="Use when Relationship is Other"
+                              className="mt-2 w-full border-2 border-black px-3 py-2 text-sm"
+                            />
+                          </label>
+
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="submit"
+                              className="border-2 border-black bg-black px-3 py-2 text-xs font-black uppercase text-white transition-colors hover:bg-white hover:text-black"
+                            >
+                              Save Relationship
+                            </button>
+
+                            {association.related_artist && (
+                              <Link
+                                href={`/admin/artists/${association.related_artist.id}`}
+                                className="border-2 border-black bg-white px-3 py-2 text-xs font-black uppercase transition-colors hover:bg-black hover:text-white"
+                              >
+                                Edit Artist →
+                              </Link>
+                            )}
+                          </div>
+                        </form>
+
+                        <form
+                          action={
+                            deleteArtistAssociation
+                          }
+                          className="mt-2"
+                        >
+                          <input
+                            type="hidden"
+                            name="current_artist_id"
+                            value={
+                              artist.id
+                            }
+                          />
+
+                          <input
+                            type="hidden"
+                            name="source_artist_id"
+                            value={
+                              association.artist_id
+                            }
+                          />
+
+                          <input
+                            type="hidden"
+                            name="associated_artist_id"
+                            value={
+                              association.associated_artist_id
+                            }
+                          />
+
+                          <button
+                            type="submit"
+                            className="border-2 border-red-700 px-3 py-2 text-xs font-black uppercase text-red-700 transition-colors hover:bg-red-700 hover:text-white"
+                          >
+                            Remove
+                          </button>
+                        </form>
+                      </div>
+                    </div>
+                  )
+                )}
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* ======================================
             DELETE ARTIST
         ====================================== */}
 
@@ -1157,7 +2131,9 @@ export default async function EditArtistPage({
           <p className="mt-4 text-sm font-bold">
             Type{" "}
             <span className="font-black">
-              {artist.name}
+              {
+                artist.name
+              }
             </span>{" "}
             exactly to confirm.
           </p>
