@@ -761,6 +761,20 @@ export default function AtlasExplorer({
   ] =
     useState(false);
 
+  const [
+    locationFocusSlug,
+    setLocationFocusSlug,
+  ] =
+    useState<string | null>(
+      null
+    );
+
+  const [
+    locationFocusToken,
+    setLocationFocusToken,
+  ] =
+    useState(0);
+
   const nearMeActive =
     nearLatitude !==
       null &&
@@ -1124,6 +1138,11 @@ export default function AtlasExplorer({
   function toggleLocation(
     slug: string
   ) {
+    const isSelected =
+      selectedLocations.includes(
+        slug
+      );
+
     setSelectedLocations(
       (current) =>
         current.includes(
@@ -1139,11 +1158,27 @@ export default function AtlasExplorer({
               slug,
             ]
     );
+
+    if (!isSelected) {
+      setLocationFocusSlug(
+        slug
+      );
+
+      setLocationFocusToken(
+        (current) =>
+          current + 1
+      );
+    }
   }
 
   function toggleEventLocation(
     slug: string
   ) {
+    const isSelected =
+      selectedEventLocations.includes(
+        slug
+      );
+
     if (
       nearMeActive
     ) {
@@ -1175,6 +1210,17 @@ export default function AtlasExplorer({
               slug,
             ]
     );
+
+    if (!isSelected) {
+      setLocationFocusSlug(
+        slug
+      );
+
+      setLocationFocusToken(
+        (current) =>
+          current + 1
+      );
+    }
   }
 
   function toggleEra(
@@ -2378,6 +2424,14 @@ export default function AtlasExplorer({
             nearMeActive
               ? selectedRadius
               : null
+          }
+
+          locationFocusSlug={
+            locationFocusSlug
+          }
+
+          locationFocusToken={
+            locationFocusToken
           }
 
           nearMeFocusToken={

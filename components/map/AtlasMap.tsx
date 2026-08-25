@@ -47,6 +47,12 @@ type AtlasMapProps = {
     | number
     | null;
 
+  locationFocusSlug?:
+    | string
+    | null;
+
+  locationFocusToken?: number;
+
   nearMeFocusToken?: number;
 };
 
@@ -175,14 +181,8 @@ const CLUSTER_LAYER_ID =
 const CLUSTER_COUNT_LAYER_ID =
   "atlas-cluster-count";
 
-const CLUSTER_TOUCH_LAYER_ID =
-  "atlas-cluster-touch-target";
-
 const POINT_LAYER_ID =
   "atlas-unclustered-point";
-
-const POINT_TOUCH_LAYER_ID =
-  "atlas-point-touch-target";
 
 const USER_SOURCE_ID =
   "atlas-user-location";
@@ -1364,8 +1364,8 @@ function buildArtistPopup(
 
   return `
     <div style="
-      width:260px;
-      max-width:100%;
+      min-width:230px;
+      max-width:290px;
       font-family:Arial,Helvetica,sans-serif;
     ">
       ${
@@ -1597,10 +1597,10 @@ function buildEventPopup(
       properties.ticket_url
     );
 
-return `
+  return `
     <div style="
-      width:280px;
-      max-width:100%;
+      min-width:240px;
+      max-width:300px;
       font-family:Arial,Helvetica,sans-serif;
     ">
       <div style="
@@ -1827,6 +1827,9 @@ export default function AtlasMap({
   eventNearLatitude = null,
   eventNearLongitude = null,
   eventRadiusMiles = null,
+
+  locationFocusSlug = null,
+  locationFocusToken = 0,
 
   nearMeFocusToken = 0,
 }: AtlasMapProps) {
@@ -2430,6 +2433,187 @@ export default function AtlasMap({
   );
 
   // ============================================
+  // LOCATION FILTER CAMERA FOCUS
+  // ============================================
+
+  useEffect(
+    () => {
+      if (
+        !locationFocusSlug ||
+        locationFocusToken <=
+          0
+      ) {
+        return;
+      }
+
+      let cancelled =
+        false;
+
+      let retryTimer:
+        ReturnType<
+          typeof setTimeout
+        > | null =
+        null;
+
+      async function focusLocation() {
+        const {
+          data,
+          error,
+        } =
+          await supabaseRef.current
+            .from(
+              "locations"
+            )
+            .select(
+              `
+              slug,
+              latitude,
+              longitude
+              `
+            )
+            .eq(
+              "slug",
+              locationFocusSlug
+            )
+            .maybeSingle();
+
+        if (
+          cancelled
+        ) {
+          return;
+        }
+
+        if (
+          error
+        ) {
+          console.error(
+            "location camera lookup error:",
+            error
+          );
+
+          return;
+        }
+
+        if (
+          !data ||
+          data.latitude ===
+            null ||
+          data.longitude ===
+            null
+        ) {
+          console.warn(
+            "Location has no coordinates:",
+            locationFocusSlug
+          );
+
+          return;
+        }
+
+        const latitude =
+          Number(
+            data.latitude
+          );
+
+        const longitude =
+          Number(
+            data.longitude
+          );
+
+        if (
+          !isValidLatitude(
+            latitude
+          ) ||
+          !isValidLongitude(
+            longitude
+          )
+        ) {
+          console.warn(
+            "Invalid location coordinates:",
+            locationFocusSlug,
+            latitude,
+            longitude
+          );
+
+          return;
+        }
+
+        const moveCamera =
+          () => {
+            if (
+              cancelled
+            ) {
+              return;
+            }
+
+            const map =
+              mapRef.current;
+
+            /*
+             * The location can be selected while
+             * Mapbox is still initializing. Retry
+             * briefly instead of dropping the
+             * camera request.
+             */
+            if (!map) {
+              retryTimer =
+                setTimeout(
+                  moveCamera,
+                  50
+                );
+
+              return;
+            }
+
+            popupRef.current?.remove();
+
+            popupRef.current =
+              null;
+
+            map.stop();
+
+            map.flyTo({
+              center: [
+                longitude,
+                latitude,
+              ],
+
+              zoom:
+                11,
+
+              duration:
+                700,
+
+              essential:
+                true,
+            });
+          };
+
+        moveCamera();
+      }
+
+      void focusLocation();
+
+      return () => {
+        cancelled =
+          true;
+
+        if (
+          retryTimer !==
+          null
+        ) {
+          clearTimeout(
+            retryTimer
+          );
+        }
+      };
+    },
+    [
+      locationFocusSlug,
+      locationFocusToken,
+    ]
+  );
+
+  // ============================================
   // NEAR ME CAMERA FIT
   // ============================================
 
@@ -2974,62 +3158,7 @@ export default function AtlasMap({
                 },
               });
             }
-            // ==================================
-            // CLUSTER TOUCH TARGETS
-            // ==================================
 
-            if (
-              !activeMap.getLayer(
-                CLUSTER_TOUCH_LAYER_ID
-              )
-            ) {
-              activeMap.addLayer({
-                id:
-                  CLUSTER_TOUCH_LAYER_ID,
-
-                type:
-                  "circle",
-
-                source:
-                  SOURCE_ID,
-
-                filter: [
-                  "has",
-                  "point_count",
-                ],
-
-                paint: {
-                  /*
-                   * Invisible interaction layer.
-                   * Keep the visual cluster size
-                   * unchanged while making touch
-                   * interaction easier on phones.
-                   */
-                  "circle-radius": [
-                    "step",
-
-                    [
-                      "get",
-                      "point_count",
-                    ],
-
-                    24,
-
-                    10,
-                    28,
-
-                    30,
-                    34,
-                  ],
-
-                  "circle-color":
-                    "#111111",
-
-                  "circle-opacity":
-                    0.01,
-                },
-              });
-            }
             // ==================================
             // ARTIST / EVENT POINTS
             // ==================================
@@ -3077,50 +3206,7 @@ export default function AtlasMap({
                 },
               });
             }
-            // ==================================
-            // POINT TOUCH TARGETS
-            // ==================================
 
-            if (
-              !activeMap.getLayer(
-                POINT_TOUCH_LAYER_ID
-              )
-            ) {
-              activeMap.addLayer({
-                id:
-                  POINT_TOUCH_LAYER_ID,
-
-                type:
-                  "circle",
-
-                source:
-                  SOURCE_ID,
-
-                filter: [
-                  "!",
-                  [
-                    "has",
-                    "point_count",
-                  ],
-                ],
-
-                paint: {
-                  /*
-                   * 44px diameter touch target
-                   * without changing the visible
-                   * Artist or Event marker size.
-                   */
-                  "circle-radius":
-                    22,
-
-                  "circle-color":
-                    "#111111",
-
-                  "circle-opacity":
-                    0.01,
-                },
-              });
-            }
             // ==================================
             // USER LOCATION SOURCE
             // ==================================
@@ -3271,9 +3357,9 @@ export default function AtlasMap({
         // CLUSTER CLICK
         // ======================================
 
-activeMap.on(
-  "click",
-  CLUSTER_TOUCH_LAYER_ID,
+        activeMap.on(
+          "click",
+          CLUSTER_LAYER_ID,
           (
             event
           ) => {
@@ -3287,9 +3373,9 @@ activeMap.on(
               activeMap.queryRenderedFeatures(
                 event.point,
                 {
-layers: [
-  CLUSTER_TOUCH_LAYER_ID,
-],
+                  layers: [
+                    CLUSTER_LAYER_ID,
+                  ],
                 }
               );
 
@@ -3420,9 +3506,9 @@ layers: [
         // POINT CLICK
         // ======================================
 
-activeMap.on(
-  "click",
-  POINT_TOUCH_LAYER_ID,
+        activeMap.on(
+          "click",
+          POINT_LAYER_ID,
           (
             event
           ) => {
@@ -3501,8 +3587,8 @@ activeMap.on(
                 closeOnClick:
                   true,
 
-maxWidth:
-  "min(320px, calc(100vw - 48px))",
+                maxWidth:
+                  "320px",
               })
                 .setLngLat([
                   longitude,
@@ -3523,7 +3609,7 @@ maxWidth:
 
         activeMap.on(
           "mouseenter",
-  CLUSTER_TOUCH_LAYER_ID,
+          CLUSTER_LAYER_ID,
           () => {
             activeMap.getCanvas().style.cursor =
               "pointer";
@@ -3532,7 +3618,7 @@ maxWidth:
 
         activeMap.on(
           "mouseleave",
-CLUSTER_TOUCH_LAYER_ID,
+          CLUSTER_LAYER_ID,
           () => {
             activeMap.getCanvas().style.cursor =
               "";
@@ -3603,12 +3689,12 @@ CLUSTER_TOUCH_LAYER_ID,
     []
   );
 
- return (
-  <div
-    ref={
-      containerRef
-    }
-    className="h-[68svh] min-h-[460px] max-h-[580px] w-full sm:h-[620px] sm:min-h-0 sm:max-h-none lg:h-[680px]"
-  />
-);
+  return (
+    <div
+      ref={
+        containerRef
+      }
+      className="h-[580px] w-full sm:h-[620px] lg:h-[680px]"
+    />
+  );
 }
