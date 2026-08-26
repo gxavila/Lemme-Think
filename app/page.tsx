@@ -1,4 +1,8 @@
+import Link from "next/link";
+
 import AtlasExplorer from "@/components/AtlasExplorer";
+import HomeSplash from "@/components/HomeSplash";
+
 import { createClient } from "@/lib/supabase/server";
 
 export const instant = false;
@@ -24,7 +28,9 @@ export default async function HomePage() {
         "active",
         true
       )
-      .order("name"),
+      .order(
+        "name"
+      ),
 
     supabase
       .from("locations")
@@ -38,16 +44,22 @@ export default async function HomePage() {
         country
         `
       )
-      .order("name"),
+      .order(
+        "name"
+      ),
   ]);
 
-  if (genresResult.error) {
+  if (
+    genresResult.error
+  ) {
     throw new Error(
       genresResult.error.message
     );
   }
 
-  if (locationsResult.error) {
+  if (
+    locationsResult.error
+  ) {
     throw new Error(
       locationsResult.error.message
     );
@@ -56,60 +68,71 @@ export default async function HomePage() {
   return (
     <main className="min-h-screen bg-[#f3efe4] text-black">
       {/* ======================================
-          HERO
+          SPLASH
       ====================================== */}
 
-      <section className="border-b-2 border-black">
-        <div className="mx-auto max-w-7xl px-5 py-7 sm:px-8 sm:py-12 lg:px-10 lg:py-14">
-          <div className="max-w-5xl">
-            <p className="text-xs font-black uppercase tracking-[0.25em]">
-              Map the Underground
-            </p>
+      <HomeSplash />
 
-            <h1 className="mt-4 max-w-5xl text-[clamp(3rem,9vw,8rem)] font-black uppercase leading-[0.86] tracking-[-0.05em]">
-              Explore Underground Music by Place
-            </h1>
+      {/* ======================================
+          APP HEADER
+      ====================================== */}
 
-            <p className="mt-5 max-w-2xl text-base font-medium leading-7 sm:mt-7 sm:text-xl sm:leading-8">
-              Discover contemporary underground artists,
-              local scenes, and independent sounds through
-              the places where they are happening.
-            </p>
-          </div>
+      <header className="sticky top-0 z-50 border-b-2 border-black bg-white">
+        <div className="flex min-h-[64px] items-center px-4 py-3 sm:px-6 lg:px-8">
+          {/* BRAND */}
+
+          <Link
+            href="/"
+            className="group inline-flex min-w-0 items-center gap-3"
+          >
+            <span
+              aria-hidden="true"
+              className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden border-2 border-black bg-black text-white transition-colors group-hover:bg-white group-hover:text-black"
+            >
+              <span className="absolute inset-0 flex items-center justify-center">
+                <span className="-translate-x-[3px] -translate-y-[4px] text-[11px] font-black uppercase leading-none">
+                  U
+                </span>
+
+                <span className="absolute h-[2px] w-[28px] -rotate-45 bg-current" />
+
+                <span className="translate-x-[4px] translate-y-[5px] text-[11px] font-black uppercase leading-none">
+                  A
+                </span>
+              </span>
+            </span>
+
+            <span className="min-w-0">
+              <span className="block text-[9px] font-black uppercase tracking-[0.22em] text-black/45">
+                Map the Underground
+              </span>
+
+              <span className="mt-0.5 block truncate text-base font-black uppercase leading-none tracking-[-0.04em] sm:text-lg">
+                Underground Atlas
+              </span>
+            </span>
+          </Link>
+
         </div>
-      </section>
+      </header>
 
       {/* ======================================
           ATLAS
       ====================================== */}
 
-      <AtlasExplorer
-        genres={
-          genresResult.data ??
-          []
-        }
-        locations={
-          locationsResult.data ??
-          []
-        }
-      />
+      <section className="w-full">
+        <AtlasExplorer
+          genres={
+            genresResult.data ??
+            []
+          }
+          locations={
+            locationsResult.data ??
+            []
+          }
+        />
+      </section>
 
-      {/* ======================================
-          FOOTER
-      ====================================== */}
-
-      <footer className="border-t-2 border-black bg-white">
-        <div className="mx-auto flex max-w-7xl flex-col gap-3 px-5 py-6 text-xs font-bold uppercase tracking-[0.12em] sm:flex-row sm:items-center sm:justify-between sm:px-8 lg:px-10">
-          <span>
-            Independent music,
-            mapped geographically.
-          </span>
-
-          <span className="text-black/50">
-            Underground Atlas
-          </span>
-        </div>
-      </footer>
     </main>
   );
 }

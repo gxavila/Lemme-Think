@@ -6,6 +6,8 @@ import {
   useState,
 } from "react";
 
+import Link from "next/link";
+
 import AtlasMap from "@/components/map/AtlasMap";
 
 type Genre = {
@@ -76,9 +78,6 @@ const LOCATION_STORAGE_KEY =
 
 const ERA_STORAGE_KEY =
   "underground-atlas-eras";
-
-const MAP_MODE_STORAGE_KEY =
-  "underground-atlas-map-mode";
 
 const EVENT_LOCATION_STORAGE_KEY =
   "underground-atlas-event-locations";
@@ -380,31 +379,12 @@ function readInitialListenerRange() {
 }
 
 function readInitialMapMode(): MapMode {
-  if (
-    typeof window ===
-    "undefined"
-  ) {
-    return "artists";
-  }
-
-  const params =
-    new URLSearchParams(
-      window.location.search
-    );
-
-  if (
-    params.get(
-      "mode"
-    ) === "events"
-  ) {
-    return "events";
-  }
-
-  return readStoredString(
-    MAP_MODE_STORAGE_KEY
-  ) === "events"
-    ? "events"
-    : "artists";
+  /*
+   * The homepage always opens in Artist mode.
+   * Event mode is an interaction state, not a
+   * persisted initial state.
+   */
+  return "artists";
 }
 
 function readInitialEventLocations() {
@@ -756,8 +736,42 @@ export default function AtlasExplorer({
     useState(false);
 
   const [
-    mobileFiltersOpen,
-    setMobileFiltersOpen,
+    activeFilterTab,
+    setActiveFilterTab,
+  ] =
+    useState<
+      | "location"
+      | "genre"
+      | "era"
+      | "status"
+      | "listeners"
+      | "date"
+      | "near-me"
+      | "places"
+      | null
+    >(null);
+
+  const [
+    resultCount,
+    setResultCount,
+  ] =
+    useState(0);
+
+  const [
+    mobileFiltersCollapsed,
+    setMobileFiltersCollapsed,
+  ] =
+    useState(false);
+
+  const [
+    mapSearchQuery,
+    setMapSearchQuery,
+  ] =
+    useState("");
+
+  const [
+    mapSearchOpen,
+    setMapSearchOpen,
   ] =
     useState(false);
 
@@ -1014,11 +1028,6 @@ export default function AtlasExplorer({
         );
 
         window.sessionStorage.setItem(
-          MAP_MODE_STORAGE_KEY,
-          mapMode
-        );
-
-        window.sessionStorage.setItem(
           EVENT_LOCATION_STORAGE_KEY,
           JSON.stringify(
             selectedEventLocations
@@ -1074,6 +1083,34 @@ export default function AtlasExplorer({
       hydrated,
     ]
   );
+
+  function selectArtistMode() {
+    setResultCount(
+      0
+    );
+
+    setMapMode(
+      "artists"
+    );
+
+    setActiveFilterTab(
+      null
+    );
+  }
+
+  function selectEventMode() {
+    setResultCount(
+      0
+    );
+
+    setMapMode(
+      "events"
+    );
+
+    setActiveFilterTab(
+      null
+    );
+  }
 
   function toggleGenre(
     slug: string
@@ -1533,620 +1570,603 @@ export default function AtlasExplorer({
     activeEventFilterCount >
     0;
 
+  const featuredLocations =
+    useMemo(
+      () => {
+        const preferredSlugs =
+          [
+            "santa-cruz-ca-us",
+            "los-angeles-ca-us",
+          ];
+
+        const preferred =
+          preferredSlugs
+            .map(
+              (slug) =>
+                locations.find(
+                  (location) =>
+                    location.slug ===
+                    slug
+                )
+            )
+            .filter(
+              (
+                location
+              ): location is Location =>
+                Boolean(
+                  location
+                )
+            );
+
+        const remaining =
+          locations.filter(
+            (location) =>
+              !preferred.some(
+                (item) =>
+                  item.id ===
+                  location.id
+              )
+          );
+
+        return [
+          ...preferred,
+          ...remaining,
+        ].slice(
+          0,
+          5
+        );
+      },
+      [
+        locations,
+      ]
+    );
+
+  const mapSearchResults =
+    useMemo(
+      () => {
+        const query =
+          mapSearchQuery
+            .trim()
+            .toLowerCase();
+
+        if (!query) {
+          return [];
+        }
+
+        return locations
+          .filter(
+            (location) => {
+              const searchable =
+                [
+                  location.name,
+                  location.city,
+                  location.region,
+                  location.country,
+                ]
+                  .filter(Boolean)
+                  .join(" ")
+                  .toLowerCase();
+
+              return searchable.includes(
+                query
+              );
+            }
+          )
+          .slice(
+            0,
+            6
+          );
+      },
+      [
+        locations,
+        mapSearchQuery,
+      ]
+    );
+
+  function jumpToLocation(
+    slug: string
+  ) {
+    setLocationFocusSlug(
+      slug
+    );
+
+    setLocationFocusToken(
+      (current) =>
+        current + 1
+    );
+
+    setMapSearchQuery(
+      ""
+    );
+
+    setMapSearchOpen(
+      false
+    );
+  }
+
   const isArtistMode =
     mapMode ===
     "artists";
 
+  const activeFilterCount =
+    isArtistMode
+      ? activeArtistFilterCount
+      : activeEventFilterCount;
+
+  const hasActiveFilters =
+    activeFilterCount >
+    0;
+
   return (
-    <section className="mx-auto max-w-7xl px-3 py-6 sm:px-8 sm:py-10 lg:px-10">
-      <div className="mb-5 flex flex-col gap-5 sm:mb-6 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="text-xs font-black uppercase tracking-[0.22em]">
-            Explore the Atlas
-          </p>
+    <section className="w-full">
+      {/* ======================================
+          EXPLORER BAR
+      ====================================== */}
 
-          <h2 className="mt-2 text-3xl font-black uppercase sm:text-4xl">
-            {isArtistMode
-              ? "Find Music by Geography"
-              : "Find Live Music by Geography"}
-          </h2>
+      <div className="sticky top-[64px] z-40 border-y-2 border-black bg-white shadow-[0_1px_0_rgba(0,0,0,0.08)]">
+        <div className="flex flex-col gap-3 px-4 py-3 sm:px-6 lg:flex-row lg:items-end lg:justify-between lg:px-8">
+          <div className="min-w-0 max-w-3xl">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-black/50">
+              Explore the Atlas
+            </p>
 
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-black/65 sm:text-base">
-            {isArtistMode
-              ? "Move around the map, refine results by location, genre, era, artist status, or audience size, then select a marker to discover an artist."
-              : "Explore upcoming shows by genre, location, date, or distance from your current position."}
-          </p>
-        </div>
+            <h2 className="mt-1 text-xl font-black uppercase tracking-[-0.03em] sm:text-2xl">
+              Find Music by Geography
+            </h2>
 
-        <div className="flex w-full border-2 border-black bg-white sm:w-fit">
-          <button
-            type="button"
-            onClick={() =>
-              setMapMode(
-                "artists"
-              )
-            }
-            aria-pressed={
-              isArtistMode
-            }
-            className={
-              isArtistMode
-                ? "min-h-11 flex-1 bg-black px-5 py-3 text-xs font-black uppercase tracking-[0.14em] text-white sm:flex-none"
-                : "min-h-11 flex-1 bg-white px-5 py-3 text-xs font-black uppercase tracking-[0.14em] transition-colors hover:bg-black hover:text-white sm:flex-none"
-            }
-          >
-            Artists
-          </button>
+            <p className="mt-2 max-w-2xl text-sm font-medium leading-6 text-black/65">
+              Discover artists, scenes, and events through
+              the places where underground music is happening.
+            </p>
+          </div>
 
-          <button
-            type="button"
-            onClick={() =>
-              setMapMode(
-                "events"
-              )
-            }
-            aria-pressed={
-              !isArtistMode
-            }
-            className={
-              !isArtistMode
-                ? "min-h-11 flex-1 border-l-2 border-black bg-black px-5 py-3 text-xs font-black uppercase tracking-[0.14em] text-white sm:flex-none"
-                : "min-h-11 flex-1 border-l-2 border-black bg-white px-5 py-3 text-xs font-black uppercase tracking-[0.14em] transition-colors hover:bg-black hover:text-white sm:flex-none"
-            }
-          >
-            Events
-          </button>
-        </div>
-      </div>
+          <div className="flex items-center justify-between gap-3 sm:hidden">
+            <div className="text-[10px] font-black uppercase tracking-[0.14em] text-black/50">
+              <span aria-live="polite">
+                {resultCount}{" "}
+                {isArtistMode
+                  ? resultCount ===
+                    1
+                    ? "artist"
+                    : "artists"
+                  : resultCount ===
+                      1
+                    ? "event"
+                    : "events"}
+              </span>
 
-      {isArtistMode ? (
-        <section className="border-2 border-black bg-white">
-          <div className="flex flex-col gap-3 border-b-2 border-black p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.18em]">
-                Refine the Map
+              <span className="mx-2 text-black/25">
+                •
+              </span>
+
+              <span>
+                {activeFilterCount}{" "}
+                {activeFilterCount ===
+                1
+                  ? "filter"
+                  : "filters"}
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setMobileFiltersCollapsed(
+                  (current) =>
+                    !current
+                );
+
+                setActiveFilterTab(
+                  null
+                );
+              }}
+              className="min-h-10 border-2 border-black bg-white px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] transition-colors hover:bg-black hover:text-white"
+              aria-expanded={
+                !mobileFiltersCollapsed
+              }
+            >
+              {mobileFiltersCollapsed
+                ? "Show Filters"
+                : "Hide Filters"}
+            </button>
+          </div>
+
+          <div className="w-full sm:w-auto">
+            <div className="grid grid-cols-3">
+              <p className="col-span-2 mb-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-black/45">
+                View on Map
               </p>
 
-              <p className="mt-1 text-xs text-black/55">
-                Combine location, genre, era, status, and listener filters.
+              <p className="mb-1.5 pl-3 text-[9px] font-black uppercase tracking-[0.16em] text-black/45">
+                Explore
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="text-xs font-black uppercase tracking-[0.12em]">
-                {hasArtistFilters
-                  ? `${activeArtistFilterCount} ${
-                      activeArtistFilterCount ===
-                      1
-                        ? "Filter"
-                        : "Filters"
-                    } Active`
-                  : "All Artists"}
-              </div>
-
-              {hasArtistFilters && (
-                <button
-                  type="button"
-                  onClick={
-                    clearArtistFilters
-                  }
-                  className="min-h-10 border-2 border-black bg-white px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] transition-colors hover:bg-black hover:text-white"
-                >
-                  Clear Filters
-                </button>
-              )}
+            <div className="grid grid-cols-3 border-2 border-black bg-white">
+              <button
+                type="button"
+                onClick={
+                  selectArtistMode
+                }
+                aria-pressed={
+                  isArtistMode
+                }
+                className={
+                  isArtistMode
+                    ? "h-10 bg-black px-4 text-[10px] font-black uppercase tracking-[0.14em] text-white sm:px-5 sm:text-xs"
+                    : "h-10 bg-white px-4 text-[10px] font-black uppercase tracking-[0.14em] transition-colors hover:bg-black hover:text-white sm:px-5 sm:text-xs"
+                }
+              >
+                Artists
+              </button>
 
               <button
                 type="button"
-                onClick={() =>
-                  setMobileFiltersOpen(
-                    (current) =>
-                      !current
-                  )
+                onClick={
+                  selectEventMode
                 }
-                aria-expanded={
-                  mobileFiltersOpen
+                aria-pressed={
+                  !isArtistMode
                 }
-                className="min-h-10 border-2 border-black bg-black px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-white sm:hidden"
+                className={
+                  !isArtistMode
+                    ? "h-10 border-l-2 border-black bg-black px-4 text-[10px] font-black uppercase tracking-[0.14em] text-white sm:px-5 sm:text-xs"
+                    : "h-10 border-l-2 border-black bg-white px-4 text-[10px] font-black uppercase tracking-[0.14em] transition-colors hover:bg-black hover:text-white sm:px-5 sm:text-xs"
+                }
               >
-                {mobileFiltersOpen
-                  ? "Hide Filters"
-                  : "Show Filters"}
+                Events
               </button>
+
+              <Link
+                href="/scenes"
+                className="flex h-10 items-center justify-center border-l-2 border-black bg-white px-4 text-center text-[10px] font-black uppercase tracking-[0.14em] transition-colors hover:bg-black hover:text-white sm:px-5 sm:text-xs"
+              >
+                Scenes →
+              </Link>
             </div>
           </div>
+        </div>
 
-          <div
-            className={
-              mobileFiltersOpen
-                ? "block"
-                : "hidden sm:block"
-            }
-          >
-            <div className="border-b-2 border-black">
-              <div className="border-b border-black/20 px-4 py-3 sm:px-5">
-                <p className="text-[10px] font-black uppercase tracking-[0.18em]">
-                  Location
-                </p>
-              </div>
+        {/* ====================================
+            FILTER TABS
+        ==================================== */}
 
-              <div className="flex flex-wrap gap-2 p-3 sm:p-5">
-                {locations.map(
-                  (
-                    location
-                  ) => {
-                    const selected =
-                      selectedLocations.includes(
-                        location.slug
-                      );
+        <div
+          className={
+            mobileFiltersCollapsed
+              ? "hidden sm:block"
+              : "block"
+          }
+        >
+        <div className="border-t-2 border-black bg-white">
+          <div className="overflow-x-auto">
+            <div className="flex min-w-max px-2 sm:px-4 lg:px-6">
+              {(isArtistMode
+                ? [
+                    {
+                      value:
+                        "location",
+                      label:
+                        "Location",
+                    },
+                    {
+                      value:
+                        "genre",
+                      label:
+                        "Genre",
+                    },
+                    {
+                      value:
+                        "era",
+                      label:
+                        "Era",
+                    },
+                    {
+                      value:
+                        "status",
+                      label:
+                        "Status",
+                    },
+                    {
+                      value:
+                        "listeners",
+                      label:
+                        "Listeners",
+                    },
+                    {
+                      value:
+                        "places",
+                      label:
+                        "Places",
+                    },
+                  ]
+                : [
+                    {
+                      value:
+                        "date",
+                      label:
+                        "Date",
+                    },
+                    {
+                      value:
+                        "genre",
+                      label:
+                        "Genre",
+                    },
+                    {
+                      value:
+                        "location",
+                      label:
+                        "Location",
+                    },
+                    {
+                      value:
+                        "near-me",
+                      label:
+                        "Near Me",
+                    },
+                    {
+                      value:
+                        "places",
+                      label:
+                        "Places",
+                    },
+                  ]
+              ).map(
+                (tab) => {
+                  const active =
+                    activeFilterTab ===
+                    tab.value;
 
-                    return (
-                      <button
-                        key={
-                          location.id
-                        }
-                        type="button"
-                        onClick={() =>
-                          toggleLocation(
-                            location.slug
-                          )
-                        }
-                        className={
-                          selected
-                            ? "min-h-11 border-2 border-black bg-black px-3 py-2 text-xs font-black uppercase text-white"
-                            : "min-h-11 border-2 border-black bg-[#f3efe4] px-3 py-2 text-xs font-black uppercase transition-colors hover:bg-black hover:text-white"
-                        }
-                      >
-                        {[
-                          location.name,
-                          location.region,
-                        ]
-                          .filter(
-                            Boolean
-                          )
-                          .join(
-                            ", "
-                          )}
-                      </button>
-                    );
-                  }
-                )}
-              </div>
-            </div>
+                  return (
+                    <button
+                      key={
+                        tab.value
+                      }
+                      type="button"
+                      onClick={() => {
+                        const nextTab =
+                          active
+                            ? null
+                            : (tab.value as
+                                | "location"
+                                | "genre"
+                                | "era"
+                                | "status"
+                                | "listeners"
+                                | "date"
+                                | "near-me"
+                                | "places");
 
-            <div className="border-b-2 border-black">
-              <div className="border-b border-black/20 px-4 py-3 sm:px-5">
-                <p className="text-[10px] font-black uppercase tracking-[0.18em]">
-                  Genre
-                </p>
-              </div>
+                        setActiveFilterTab(
+                          nextTab
+                        );
 
-              <div className="flex flex-wrap gap-2 p-3 sm:p-5">
-                {genres.map(
-                  (
-                    genre
-                  ) => {
-                    const selected =
-                      selectedGenres.includes(
-                        genre.slug
-                      );
-
-                    return (
-                      <button
-                        key={
-                          genre.id
+                        if (
+                          nextTab !==
+                            "places"
+                        ) {
+                          setMapSearchOpen(
+                            false
+                          );
                         }
-                        type="button"
-                        onClick={() =>
-                          toggleGenre(
-                            genre.slug
-                          )
-                        }
-                        className={
-                          selected
-                            ? "min-h-11 border-2 border-black bg-black px-3 py-2 text-xs font-black uppercase text-white"
-                            : "min-h-11 border-2 border-black bg-[#f3efe4] px-3 py-2 text-xs font-black uppercase transition-colors hover:bg-black hover:text-white"
-                        }
-                      >
-                        {
-                          genre.name
-                        }
-                      </button>
-                    );
-                  }
-                )}
-              </div>
-            </div>
-
-            <div className="border-b-2 border-black">
-              <div className="border-b border-black/20 px-4 py-3 sm:px-5">
-                <p className="text-[10px] font-black uppercase tracking-[0.18em]">
-                  Era
-                </p>
-              </div>
-
-              <div className="flex flex-wrap gap-2 p-3 sm:p-5">
-                {ERA_RANGES.map(
-                  (
-                    era
-                  ) => {
-                    const selected =
-                      selectedEras.includes(
-                        era.value
-                      );
-
-                    return (
-                      <button
-                        key={
-                          era.value
-                        }
-                        type="button"
-                        onClick={() =>
-                          toggleEra(
-                            era.value
-                          )
-                        }
-                        className={
-                          selected
-                            ? "min-h-11 border-2 border-black bg-black px-3 py-2 text-xs font-black uppercase text-white"
-                            : "min-h-11 border-2 border-black bg-[#f3efe4] px-3 py-2 text-xs font-black uppercase transition-colors hover:bg-black hover:text-white"
-                        }
-                      >
-                        {
-                          era.label
-                        }
-                      </button>
-                    );
-                  }
-                )}
-              </div>
-            </div>
-
-            <div className="border-b-2 border-black">
-              <div className="border-b border-black/20 px-4 py-3 sm:px-5">
-                <p className="text-[10px] font-black uppercase tracking-[0.18em]">
-                  Artist Status
-                </p>
-              </div>
-
-              <div className="flex flex-wrap gap-2 p-3 sm:p-5">
-                {ARTIST_STATUSES.map(
-                  (
-                    status
-                  ) => {
-                    const selected =
-                      selectedStatuses.includes(
-                        status.value
-                      );
-
-                    return (
-                      <button
-                        key={
-                          status.value
-                        }
-                        type="button"
-                        onClick={() =>
-                          toggleStatus(
-                            status.value
-                          )
-                        }
-                        className={
-                          selected
-                            ? "min-h-11 border-2 border-black bg-black px-3 py-2 text-xs font-black uppercase text-white"
-                            : "min-h-11 border-2 border-black bg-[#f3efe4] px-3 py-2 text-xs font-black uppercase transition-colors hover:bg-black hover:text-white"
-                        }
-                      >
-                        {
-                          status.label
-                        }
-                      </button>
-                    );
-                  }
-                )}
-              </div>
-            </div>
-
-            <div>
-              <div className="border-b border-black/20 px-4 py-3 sm:px-5">
-                <p className="text-[10px] font-black uppercase tracking-[0.18em]">
-                  Monthly Listeners
-                </p>
-              </div>
-
-              <div className="flex flex-wrap gap-2 p-3 sm:p-5">
-                {LISTENER_RANGES.map(
-                  (
-                    range
-                  ) => {
-                    const selected =
-                      selectedListenerRange ===
-                      range.value;
-
-                    return (
-                      <button
-                        key={
-                          range.value
-                        }
-                        type="button"
-                        onClick={() =>
-                          toggleListenerRange(
-                            range.value
-                          )
-                        }
-                        className={
-                          selected
-                            ? "min-h-11 border-2 border-black bg-black px-3 py-2 text-xs font-black uppercase text-white"
-                            : "min-h-11 border-2 border-black bg-[#f3efe4] px-3 py-2 text-xs font-black uppercase transition-colors hover:bg-black hover:text-white"
-                        }
-                      >
-                        {
-                          range.label
-                        }
-                      </button>
-                    );
-                  }
-                )}
-              </div>
-            </div>
-          </div>
-        </section>
-      ) : (
-        <section className="border-2 border-black bg-white">
-          <div className="flex flex-col gap-3 border-b-2 border-black p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.18em]">
-                Refine Upcoming Events
-              </p>
-
-              <p className="mt-1 text-xs text-black/55">
-                Filter live events by genre, date, place, or distance.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="text-xs font-black uppercase tracking-[0.12em]">
-                {hasEventFilters
-                  ? `${activeEventFilterCount} ${
-                      activeEventFilterCount ===
-                      1
-                        ? "Filter"
-                        : "Filters"
-                    } Active`
-                  : "Next 30 Days"}
-              </div>
-
-              {hasEventFilters && (
-                <button
-                  type="button"
-                  onClick={
-                    clearEventFilters
-                  }
-                  className="min-h-10 border-2 border-black bg-white px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] transition-colors hover:bg-black hover:text-white"
-                >
-                  Clear Filters
-                </button>
+                      }}
+                      aria-expanded={
+                        active
+                      }
+                      className={
+                        active
+                          ? "min-h-10 border-b-[3px] border-black bg-[#f3efe4] px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-black sm:px-4"
+                          : "min-h-10 border-b-[3px] border-transparent px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-black/60 transition-colors hover:border-black hover:text-black sm:px-4"
+                      }
+                    >
+                      {
+                        tab.label
+                      }
+                    </button>
+                  );
+                }
               )}
 
-              <button
-                type="button"
-                onClick={() =>
-                  setMobileFiltersOpen(
-                    (current) =>
-                      !current
-                  )
-                }
-                aria-expanded={
-                  mobileFiltersOpen
-                }
-                className="min-h-10 border-2 border-black bg-black px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-white sm:hidden"
-              >
-                {mobileFiltersOpen
-                  ? "Hide Filters"
-                  : "Show Filters"}
-              </button>
-            </div>
-          </div>
+              <div className="ml-2 flex items-center gap-3">
+                <span
+                  className="hidden border-l border-black/15 pl-3 text-[9px] font-black uppercase tracking-[0.1em] text-black/40 md:inline"
+                  aria-live="polite"
+                >
+                  {resultCount}{" "}
+                  {isArtistMode
+                    ? resultCount ===
+                      1
+                      ? "artist shown"
+                      : "artists shown"
+                    : resultCount ===
+                        1
+                      ? "event shown"
+                      : "events shown"}
+                </span>
 
-          <div
-            className={
-              mobileFiltersOpen
-                ? "block"
-                : "hidden sm:block"
-            }
-          >
-            {/* DATE */}
+                <span className="hidden text-[10px] font-black uppercase tracking-[0.12em] text-black/45 lg:inline">
+                  {activeFilterCount}{" "}
+                  {activeFilterCount ===
+                  1
+                    ? "filter active"
+                    : "filters active"}
+                </span>
 
-            <div className="border-b-2 border-black">
-              <div className="border-b border-black/20 px-4 py-3 sm:px-5">
-                <p className="text-[10px] font-black uppercase tracking-[0.18em]">
-                  Date
-                </p>
-
-                <p className="mt-1 text-xs text-black/50">
-                  Choose how far ahead to explore.
-                </p>
-              </div>
-
-              <div className="flex flex-wrap gap-2 p-3 sm:p-5">
-                {EVENT_WINDOWS.map(
-                  (
-                    range
-                  ) => {
-                    const selected =
-                      selectedEventWindow ===
-                      range.value;
-
-                    return (
-                      <button
-                        key={
-                          range.value
-                        }
-                        type="button"
-                        onClick={() =>
-                          setSelectedEventWindow(
-                            range.value
-                          )
-                        }
-                        className={
-                          selected
-                            ? "min-h-11 border-2 border-black bg-black px-3 py-2 text-xs font-black uppercase text-white"
-                            : "min-h-11 border-2 border-black bg-[#f3efe4] px-3 py-2 text-xs font-black uppercase transition-colors hover:bg-black hover:text-white"
-                        }
-                      >
-                        {
-                          range.label
-                        }
-                      </button>
-                    );
-                  }
-                )}
-              </div>
-            </div>
-
-            {/* EVENT GENRE */}
-
-            <div className="border-b-2 border-black">
-              <div className="border-b border-black/20 px-4 py-3 sm:px-5">
-                <p className="text-[10px] font-black uppercase tracking-[0.18em]">
-                  Genre
-                </p>
-
-                <p className="mt-1 text-xs text-black/50">
-                  Match shows containing at least one artist in the selected genres.
-                </p>
-              </div>
-
-              <div className="flex flex-wrap gap-2 p-3 sm:p-5">
-                {genres.map(
-                  (
-                    genre
-                  ) => {
-                    const selected =
-                      selectedEventGenres.includes(
-                        genre.slug
-                      );
-
-                    return (
-                      <button
-                        key={
-                          genre.id
-                        }
-                        type="button"
-                        onClick={() =>
-                          toggleEventGenre(
-                            genre.slug
-                          )
-                        }
-                        aria-pressed={
-                          selected
-                        }
-                        className={
-                          selected
-                            ? "min-h-11 border-2 border-black bg-black px-3 py-2 text-xs font-black uppercase text-white"
-                            : "min-h-11 border-2 border-black bg-[#f3efe4] px-3 py-2 text-xs font-black uppercase transition-colors hover:bg-black hover:text-white"
-                        }
-                      >
-                        {
-                          genre.name
-                        }
-                      </button>
-                    );
-                  }
-                )}
-              </div>
-            </div>
-
-            {/* NEAR ME */}
-
-            <div className="border-b-2 border-black">
-              <div className="border-b border-black/20 px-4 py-3 sm:px-5">
-                <p className="text-[10px] font-black uppercase tracking-[0.18em]">
-                  Near Me
-                </p>
-
-                <p className="mt-1 text-xs text-black/50">
-                  Find events within a radius of your current location.
-                </p>
-              </div>
-
-              <div className="p-3 sm:p-5">
-                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                {hasActiveFilters && (
                   <button
                     type="button"
-                    disabled={
-                      nearMeLoading
-                    }
                     onClick={
-                      activateNearMe
+                      isArtistMode
+                        ? clearArtistFilters
+                        : clearEventFilters
                     }
-                    className={
-                      nearMeActive
-                        ? "min-h-11 w-full border-2 border-black bg-black px-4 py-2 text-xs font-black uppercase tracking-[0.1em] text-white sm:w-auto"
-                        : "min-h-11 w-full border-2 border-black bg-[#f3efe4] px-4 py-2 text-xs font-black uppercase tracking-[0.1em] transition-colors hover:bg-black hover:text-white disabled:opacity-50 sm:w-auto"
-                    }
+                    className="min-h-10 px-3 py-2 text-[9px] font-black uppercase tracking-[0.1em] text-black/45 hover:text-black hover:underline"
                   >
-                    {nearMeLoading
-                      ? "Finding Location..."
-                      : nearMeActive
-                        ? "Using My Location"
-                        : "Use My Location"}
+                    Clear All
                   </button>
-
-                  {nearMeActive && (
-                    <button
-                      type="button"
-                      onClick={
-                        disableNearMe
-                      }
-                      className="min-h-11 w-full border-2 border-black bg-white px-4 py-2 text-xs font-black uppercase sm:w-auto"
-                    >
-                      Turn Off
-                    </button>
-                  )}
-                </div>
-
-                {nearMeError && (
-                  <p className="mt-3 text-xs font-bold text-red-700">
-                    {
-                      nearMeError
-                    }
-                  </p>
                 )}
+              </div>
+            </div>
+          </div>
+        </div>
 
-                {nearMeActive && (
-                  <div className="mt-5 border-t border-black/20 pt-4">
-                    <p className="text-[10px] font-black uppercase tracking-[0.18em]">
-                      Radius
+        {/* ====================================
+            ACTIVE FILTER PANEL
+        ==================================== */}
+
+        {activeFilterTab && (
+          <div className="border-t border-black bg-[#f3efe4]">
+            <div className="px-4 py-2.5 sm:px-6 lg:px-8">
+              {/* ARTIST LOCATION */}
+
+              {isArtistMode &&
+                activeFilterTab ===
+                  "location" && (
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-black/50">
+                      Location
                     </p>
 
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {RADIUS_OPTIONS.map(
+                    <div className="mt-1.5 flex flex-wrap gap-2">
+                      {locations.map(
                         (
-                          option
+                          location
                         ) => {
                           const selected =
-                            selectedRadius ===
-                            option.value;
+                            selectedLocations.includes(
+                              location.slug
+                            );
 
                           return (
                             <button
                               key={
-                                option.value
+                                location.id
                               }
                               type="button"
                               onClick={() =>
-                                changeRadius(
-                                  option.value
+                                toggleLocation(
+                                  location.slug
                                 )
                               }
                               className={
                                 selected
-                                  ? "min-h-11 border-2 border-black bg-black px-3 py-2 text-xs font-black uppercase text-white"
-                                  : "min-h-11 border-2 border-black bg-[#f3efe4] px-3 py-2 text-xs font-black uppercase"
+                                  ? "min-h-10 border-2 border-black bg-black px-3 py-1.5 text-[11px] font-black uppercase text-white"
+                                  : "min-h-10 border-2 border-black bg-white px-3 py-1.5 text-[11px] font-black uppercase transition-colors hover:bg-black hover:text-white"
+                              }
+                            >
+                              {[
+                                location.name,
+                                location.region,
+                              ]
+                                .filter(
+                                  Boolean
+                                )
+                                .join(
+                                  ", "
+                                )}
+                            </button>
+                          );
+                        }
+                      )}
+                    </div>
+                  </div>
+                )}
+
+              {/* ARTIST / EVENT GENRE */}
+
+              {activeFilterTab ===
+                "genre" && (
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-black/50">
+                    Genre
+                  </p>
+
+                  <div className="mt-1.5 flex flex-wrap gap-2">
+                    {genres.map(
+                      (
+                        genre
+                      ) => {
+                        const selected =
+                          isArtistMode
+                            ? selectedGenres.includes(
+                                genre.slug
+                              )
+                            : selectedEventGenres.includes(
+                                genre.slug
+                              );
+
+                        return (
+                          <button
+                            key={
+                              genre.id
+                            }
+                            type="button"
+                            onClick={() =>
+                              isArtistMode
+                                ? toggleGenre(
+                                    genre.slug
+                                  )
+                                : toggleEventGenre(
+                                    genre.slug
+                                  )
+                            }
+                            className={
+                              selected
+                                ? "min-h-10 border-2 border-black bg-black px-3 py-1.5 text-[11px] font-black uppercase text-white"
+                                : "min-h-10 border-2 border-black bg-white px-3 py-1.5 text-[11px] font-black uppercase transition-colors hover:bg-black hover:text-white"
+                            }
+                          >
+                            {
+                              genre.name
+                            }
+                          </button>
+                        );
+                      }
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* ARTIST ERA */}
+
+              {isArtistMode &&
+                activeFilterTab ===
+                  "era" && (
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-black/50">
+                      Era
+                    </p>
+
+                    <div className="mt-1.5 flex flex-wrap gap-2">
+                      {ERA_RANGES.map(
+                        (
+                          era
+                        ) => {
+                          const selected =
+                            selectedEras.includes(
+                              era.value
+                            );
+
+                          return (
+                            <button
+                              key={
+                                era.value
+                              }
+                              type="button"
+                              onClick={() =>
+                                toggleEra(
+                                  era.value
+                                )
+                              }
+                              className={
+                                selected
+                                  ? "min-h-10 border-2 border-black bg-black px-3 py-1.5 text-[11px] font-black uppercase text-white"
+                                  : "min-h-10 border-2 border-black bg-white px-3 py-1.5 text-[11px] font-black uppercase transition-colors hover:bg-black hover:text-white"
                               }
                             >
                               {
-                                option.label
+                                era.label
                               }
                             </button>
                           );
@@ -2155,74 +2175,520 @@ export default function AtlasExplorer({
                     </div>
                   </div>
                 )}
-              </div>
-            </div>
 
-            {/* LOCATION */}
+              {/* ARTIST STATUS */}
 
-            <div>
-              <div className="border-b border-black/20 px-4 py-3 sm:px-5">
-                <p className="text-[10px] font-black uppercase tracking-[0.18em]">
-                  Location
-                </p>
+              {isArtistMode &&
+                activeFilterTab ===
+                  "status" && (
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-black/50">
+                      Status
+                    </p>
 
-                <p className="mt-1 text-xs text-black/50">
-                  Or select one or more Atlas locations.
-                </p>
-              </div>
+                    <div className="mt-1.5 flex flex-wrap gap-2">
+                      {ARTIST_STATUSES.map(
+                        (
+                          status
+                        ) => {
+                          const selected =
+                            selectedStatuses.includes(
+                              status.value
+                            );
 
-              <div className="flex flex-wrap gap-2 p-3 sm:p-5">
-                {locations.map(
-                  (
-                    location
-                  ) => {
-                    const selected =
-                      selectedEventLocations.includes(
-                        location.slug
-                      );
-
-                    return (
-                      <button
-                        key={
-                          location.id
+                          return (
+                            <button
+                              key={
+                                status.value
+                              }
+                              type="button"
+                              onClick={() =>
+                                toggleStatus(
+                                  status.value
+                                )
+                              }
+                              className={
+                                selected
+                                  ? "min-h-10 border-2 border-black bg-black px-3 py-1.5 text-[11px] font-black uppercase text-white"
+                                  : "min-h-10 border-2 border-black bg-white px-3 py-1.5 text-[11px] font-black uppercase transition-colors hover:bg-black hover:text-white"
+                              }
+                            >
+                              {
+                                status.label
+                              }
+                            </button>
+                          );
                         }
+                      )}
+                    </div>
+                  </div>
+                )}
+
+              {/* ARTIST LISTENERS */}
+
+              {isArtistMode &&
+                activeFilterTab ===
+                  "listeners" && (
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-black/50">
+                      Monthly Listeners
+                    </p>
+
+                    <div className="mt-1.5 flex flex-wrap gap-2">
+                      {LISTENER_RANGES.map(
+                        (
+                          range
+                        ) => {
+                          const selected =
+                            selectedListenerRange ===
+                            range.value;
+
+                          return (
+                            <button
+                              key={
+                                range.value
+                              }
+                              type="button"
+                              onClick={() =>
+                                toggleListenerRange(
+                                  range.value
+                                )
+                              }
+                              className={
+                                selected
+                                  ? "min-h-10 border-2 border-black bg-black px-3 py-1.5 text-[11px] font-black uppercase text-white"
+                                  : "min-h-10 border-2 border-black bg-white px-3 py-1.5 text-[11px] font-black uppercase transition-colors hover:bg-black hover:text-white"
+                              }
+                            >
+                              {
+                                range.label
+                              }
+                            </button>
+                          );
+                        }
+                      )}
+                    </div>
+                  </div>
+                )}
+
+              {/* PLACES */}
+
+              {activeFilterTab ===
+                "places" && (
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-black/50">
+                    Places
+                  </p>
+
+                  <p className="mt-0.5 text-[11px] text-black/45">
+                    Jump to a city or place without changing your active filters.
+                  </p>
+
+                  <div className="mt-2 grid gap-3 lg:grid-cols-[minmax(280px,0.9fr)_minmax(0,1.1fr)] lg:items-end">
+                    <div className="relative">
+                      <label
+                        htmlFor="atlas-map-search"
+                        className="mb-1.5 block text-[9px] font-black uppercase tracking-[0.16em] text-black/45"
+                      >
+                        Jump to a Place
+                      </label>
+
+                      <div className="flex border-2 border-black bg-white">
+                        <input
+                          id="atlas-map-search"
+                          type="search"
+                          value={
+                            mapSearchQuery
+                          }
+                          onFocus={() => {
+                            setMapSearchOpen(
+                              true
+                            );
+                          }}
+                          onChange={(
+                            event
+                          ) => {
+                            setMapSearchQuery(
+                              event.target.value
+                            );
+
+                            setMapSearchOpen(
+                              true
+                            );
+                          }}
+                          onKeyDown={(
+                            event
+                          ) => {
+                            if (
+                              event.key ===
+                                "Escape"
+                            ) {
+                              setMapSearchOpen(
+                                false
+                              );
+
+                              event.currentTarget.blur();
+                            }
+
+                            if (
+                              event.key ===
+                                "Enter" &&
+                              mapSearchResults.length >
+                                0
+                            ) {
+                              event.preventDefault();
+
+                              jumpToLocation(
+                                mapSearchResults[0].slug
+                              );
+                            }
+                          }}
+                          placeholder="Search a city or place..."
+                          autoComplete="off"
+                          className="min-h-9 min-w-0 flex-1 bg-white px-3 py-1 text-base font-bold outline-none placeholder:font-medium placeholder:text-black/35 sm:text-sm"
+                        />
+
+                        {mapSearchQuery && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setMapSearchQuery(
+                                ""
+                              );
+
+                              setMapSearchOpen(
+                                false
+                              );
+                            }}
+                            className="min-h-9 border-l-2 border-black px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] transition-colors hover:bg-black hover:text-white"
+                          >
+                            Clear
+                          </button>
+                        )}
+                      </div>
+
+                      {mapSearchOpen &&
+                        mapSearchQuery.trim() && (
+                          <div className="absolute inset-x-0 top-full z-50 mt-1 border-2 border-black bg-white">
+                            {mapSearchResults.length >
+                            0 ? (
+                              <div>
+                                {mapSearchResults.map(
+                                  (
+                                    location
+                                  ) => {
+                                    const placeLabel =
+                                      [
+                                        location.city,
+                                        location.region,
+                                        location.country,
+                                      ]
+                                        .filter(Boolean)
+                                        .join(", ");
+
+                                    return (
+                                      <button
+                                        key={
+                                          location.id
+                                        }
+                                        type="button"
+                                        onClick={() => {
+                                          jumpToLocation(
+                                            location.slug
+                                          );
+                                        }}
+                                        className="flex min-h-10 w-full items-center justify-between gap-4 border-b border-black/15 px-3 py-2 text-left transition-colors last:border-b-0 hover:bg-[#f3efe4]"
+                                      >
+                                        <span className="min-w-0">
+                                          <span className="block truncate text-xs font-black uppercase tracking-[0.08em]">
+                                            {location.name}
+                                          </span>
+
+                                          {placeLabel && (
+                                            <span className="mt-0.5 block truncate text-[10px] font-bold text-black/45">
+                                              {placeLabel}
+                                            </span>
+                                          )}
+                                        </span>
+
+                                        <span
+                                          aria-hidden="true"
+                                          className="shrink-0 text-sm font-black"
+                                        >
+                                          →
+                                        </span>
+                                      </button>
+                                    );
+                                  }
+                                )}
+                              </div>
+                            ) : (
+                              <div className="px-3 py-3 text-xs font-bold text-black/50">
+                                No matching places.
+                              </div>
+                            )}
+                          </div>
+                        )}
+                    </div>
+
+                    {featuredLocations.length >
+                      0 && (
+                      <div>
+                        <p className="mb-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-black/45">
+                          Quick Jumps
+                        </p>
+
+                        <div className="overflow-x-auto">
+                          <div className="flex w-max flex-wrap gap-2 lg:w-auto">
+                            {featuredLocations.map(
+                              (
+                                location
+                              ) => (
+                                <button
+                                  key={
+                                    location.id
+                                  }
+                                  type="button"
+                                  onClick={() => {
+                                    jumpToLocation(
+                                      location.slug
+                                    );
+                                  }}
+                                  className="min-h-9 shrink-0 border-2 border-black bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.1em] transition-colors hover:bg-black hover:text-white"
+                                >
+                                  {location.city ??
+                                    location.name}
+                                </button>
+                              )
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* EVENT DATE */}
+
+              {!isArtistMode &&
+                activeFilterTab ===
+                  "date" && (
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-black/50">
+                      Date
+                    </p>
+
+                    <div className="mt-1.5 flex flex-wrap gap-2">
+                      {EVENT_WINDOWS.map(
+                        (
+                          range
+                        ) => {
+                          const selected =
+                            selectedEventWindow ===
+                            range.value;
+
+                          return (
+                            <button
+                              key={
+                                range.value
+                              }
+                              type="button"
+                              onClick={() =>
+                                setSelectedEventWindow(
+                                  range.value
+                                )
+                              }
+                              className={
+                                selected
+                                  ? "min-h-10 border-2 border-black bg-black px-3 py-1.5 text-[11px] font-black uppercase text-white"
+                                  : "min-h-10 border-2 border-black bg-white px-3 py-1.5 text-[11px] font-black uppercase transition-colors hover:bg-black hover:text-white"
+                              }
+                            >
+                              {
+                                range.label
+                              }
+                            </button>
+                          );
+                        }
+                      )}
+                    </div>
+                  </div>
+                )}
+
+              {/* EVENT LOCATION */}
+
+              {!isArtistMode &&
+                activeFilterTab ===
+                  "location" && (
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-black/50">
+                      Location
+                    </p>
+
+                    <p className="mt-1 text-xs text-black/50">
+                      Select one or more Atlas locations.
+                    </p>
+
+                    <div className="mt-1.5 flex flex-wrap gap-2">
+                      {locations.map(
+                        (
+                          location
+                        ) => {
+                          const selected =
+                            selectedEventLocations.includes(
+                              location.slug
+                            );
+
+                          return (
+                            <button
+                              key={
+                                location.id
+                              }
+                              type="button"
+                              onClick={() =>
+                                toggleEventLocation(
+                                  location.slug
+                                )
+                              }
+                              className={
+                                selected
+                                  ? "min-h-10 border-2 border-black bg-black px-3 py-1.5 text-[11px] font-black uppercase text-white"
+                                  : "min-h-10 border-2 border-black bg-white px-3 py-1.5 text-[11px] font-black uppercase transition-colors hover:bg-black hover:text-white"
+                              }
+                            >
+                              {[
+                                location.name,
+                                location.region,
+                              ]
+                                .filter(
+                                  Boolean
+                                )
+                                .join(
+                                  ", "
+                                )}
+                            </button>
+                          );
+                        }
+                      )}
+                    </div>
+                  </div>
+                )}
+
+              {/* EVENT NEAR ME */}
+
+              {!isArtistMode &&
+                activeFilterTab ===
+                  "near-me" && (
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-black/50">
+                      Near Me
+                    </p>
+
+                    <p className="mt-1 text-xs text-black/50">
+                      Use your current position to find upcoming events nearby.
+                    </p>
+
+                    <div className="mt-1.5 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                      <button
                         type="button"
-                        onClick={() =>
-                          toggleEventLocation(
-                            location.slug
-                          )
+                        disabled={
+                          nearMeLoading
+                        }
+                        onClick={
+                          activateNearMe
                         }
                         className={
-                          selected
-                            ? "min-h-11 border-2 border-black bg-black px-3 py-2 text-xs font-black uppercase text-white"
-                            : "min-h-11 border-2 border-black bg-[#f3efe4] px-3 py-2 text-xs font-black uppercase"
+                          nearMeActive
+                            ? "min-h-10 w-full border-2 border-black bg-black px-4 py-1.5 text-[11px] font-black uppercase tracking-[0.1em] text-white sm:w-auto"
+                            : "min-h-10 w-full border-2 border-black bg-white px-4 py-1.5 text-[11px] font-black uppercase tracking-[0.1em] transition-colors hover:bg-black hover:text-white disabled:opacity-50 sm:w-auto"
                         }
                       >
-                        {[
-                          location.name,
-                          location.region,
-                        ]
-                          .filter(
-                            Boolean
-                          )
-                          .join(
-                            ", "
-                          )}
+                        {nearMeLoading
+                          ? "Finding Location..."
+                          : nearMeActive
+                            ? "Using My Location"
+                            : "Use My Location"}
                       </button>
-                    );
-                  }
+
+                      {nearMeActive && (
+                        <button
+                          type="button"
+                          onClick={
+                            disableNearMe
+                          }
+                          className="min-h-10 w-full border-2 border-black bg-white px-4 py-1.5 text-[11px] font-black uppercase sm:w-auto"
+                        >
+                          Turn Off
+                        </button>
+                      )}
+                    </div>
+
+                    {nearMeError && (
+                      <p className="mt-3 text-xs font-bold text-red-700">
+                        {
+                          nearMeError
+                        }
+                      </p>
+                    )}
+
+                    {nearMeActive && (
+                      <div className="mt-2.5 border-t border-black/15 pt-2.5">
+                        <p className="text-[10px] font-black uppercase tracking-[0.18em]">
+                          Radius
+                        </p>
+
+                        <div className="mt-1.5 flex flex-wrap gap-2">
+                          {RADIUS_OPTIONS.map(
+                            (
+                              option
+                            ) => {
+                              const selected =
+                                selectedRadius ===
+                                option.value;
+
+                              return (
+                                <button
+                                  key={
+                                    option.value
+                                  }
+                                  type="button"
+                                  onClick={() =>
+                                    changeRadius(
+                                      option.value
+                                    )
+                                  }
+                                  className={
+                                    selected
+                                      ? "min-h-10 border-2 border-black bg-black px-3 py-1.5 text-[11px] font-black uppercase text-white"
+                                      : "min-h-10 border-2 border-black bg-white px-3 py-1.5 text-[11px] font-black uppercase"
+                                  }
+                                >
+                                  {
+                                    option.label
+                                  }
+                                </button>
+                              );
+                            }
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 )}
-              </div>
             </div>
           </div>
-        </section>
-      )}
+        )}
+        </div>
+      </div>
 
-      {/* ACTIVE EVENT FILTERS */}
+      {/* ======================================
+          ACTIVE FILTER CHIPS
+      ====================================== */}
 
       {!isArtistMode &&
         hasEventFilters && (
-          <div className="mt-4 flex flex-wrap items-center gap-2">
+          <div className={mobileFiltersCollapsed ? "hidden sm:flex sm:flex-wrap sm:items-center sm:gap-2 sm:border-b-2 sm:border-black sm:bg-white sm:px-6 sm:py-1.5 lg:px-8" : "flex flex-wrap items-center gap-2 border-b-2 border-black bg-white px-4 py-1.5 sm:px-6 lg:px-8"}>
             <span className="mr-1 text-[10px] font-black uppercase tracking-[0.16em] text-black/50">
               Showing
             </span>
@@ -2255,7 +2721,7 @@ export default function AtlasExplorer({
                         genre.slug
                       )
                     }
-                    className="min-h-10 border-2 border-black bg-black px-2.5 py-1.5 text-[10px] font-black uppercase text-white"
+                    className="min-h-9 border-2 border-black bg-black px-2.5 py-1 text-[10px] font-black uppercase text-white"
                   >
                     {
                       genre.name
@@ -2272,7 +2738,7 @@ export default function AtlasExplorer({
                 onClick={
                   disableNearMe
                 }
-                className="min-h-10 border-2 border-black bg-black px-2.5 py-1.5 text-[10px] font-black uppercase text-white"
+                className="min-h-9 border-2 border-black bg-black px-2.5 py-1 text-[10px] font-black uppercase text-white"
               >
                 Near Me ·{" "}
                 {
@@ -2291,7 +2757,7 @@ export default function AtlasExplorer({
                     "30-days"
                   )
                 }
-                className="min-h-10 border-2 border-black bg-white px-2.5 py-1.5 text-[10px] font-black uppercase"
+                className="min-h-9 border-2 border-black bg-white px-2.5 py-1 text-[10px] font-black uppercase"
               >
                 {
                   selectedEventRange.label
@@ -2328,7 +2794,7 @@ export default function AtlasExplorer({
                         location.slug
                       )
                     }
-                    className="min-h-10 border-2 border-black bg-black px-2.5 py-1.5 text-[10px] font-black uppercase text-white"
+                    className="min-h-9 border-2 border-black bg-black px-2.5 py-1 text-[10px] font-black uppercase text-white"
                   >
                     {
                       location.name
@@ -2338,36 +2804,228 @@ export default function AtlasExplorer({
                 );
               }
             )}
+
+            <button
+              type="button"
+              onClick={
+                clearEventFilters
+              }
+              className="min-h-9 px-2.5 py-1 text-[10px] font-black uppercase text-black/50 hover:text-black hover:underline"
+            >
+              Clear All
+            </button>
           </div>
         )}
 
-      {/* ACTIVE ARTIST FILTERS */}
-
       {isArtistMode &&
         hasArtistFilters && (
-          <div className="mt-4 flex flex-wrap items-center gap-2">
+          <div className={mobileFiltersCollapsed ? "hidden sm:flex sm:flex-wrap sm:items-center sm:gap-2 sm:border-b-2 sm:border-black sm:bg-white sm:px-6 sm:py-1.5 lg:px-8" : "flex flex-wrap items-center gap-2 border-b-2 border-black bg-white px-4 py-1.5 sm:px-6 lg:px-8"}>
             <span className="mr-1 text-[10px] font-black uppercase tracking-[0.16em] text-black/50">
-              Showing
+              Active Filters
             </span>
+
+            {selectedLocations.map(
+              (
+                slug
+              ) => {
+                const location =
+                  locations.find(
+                    (
+                      item
+                    ) =>
+                      item.slug ===
+                      slug
+                  );
+
+                if (
+                  !location
+                ) {
+                  return null;
+                }
+
+                return (
+                  <button
+                    key={`artist-location-${location.id}`}
+                    type="button"
+                    onClick={() =>
+                      toggleLocation(
+                        location.slug
+                      )
+                    }
+                    className="min-h-9 border-2 border-black bg-black px-2.5 py-1 text-[10px] font-black uppercase text-white"
+                  >
+                    {
+                      location.name
+                    }{" "}
+                    ×
+                  </button>
+                );
+              }
+            )}
+
+            {selectedGenres.map(
+              (
+                slug
+              ) => {
+                const genre =
+                  genres.find(
+                    (
+                      item
+                    ) =>
+                      item.slug ===
+                      slug
+                  );
+
+                if (
+                  !genre
+                ) {
+                  return null;
+                }
+
+                return (
+                  <button
+                    key={`artist-genre-${genre.id}`}
+                    type="button"
+                    onClick={() =>
+                      toggleGenre(
+                        genre.slug
+                      )
+                    }
+                    className="min-h-9 border-2 border-black bg-black px-2.5 py-1 text-[10px] font-black uppercase text-white"
+                  >
+                    {
+                      genre.name
+                    }{" "}
+                    ×
+                  </button>
+                );
+              }
+            )}
+
+            {selectedEras.map(
+              (
+                value
+              ) => {
+                const era =
+                  ERA_RANGES.find(
+                    (
+                      item
+                    ) =>
+                      item.value ===
+                      value
+                  );
+
+                if (!era) {
+                  return null;
+                }
+
+                return (
+                  <button
+                    key={`artist-era-${era.value}`}
+                    type="button"
+                    onClick={() =>
+                      toggleEra(
+                        era.value
+                      )
+                    }
+                    className="min-h-9 border-2 border-black bg-white px-2.5 py-1 text-[10px] font-black uppercase"
+                  >
+                    {
+                      era.label
+                    }{" "}
+                    ×
+                  </button>
+                );
+              }
+            )}
+
+            {selectedStatuses.map(
+              (
+                value
+              ) => {
+                const status =
+                  ARTIST_STATUSES.find(
+                    (
+                      item
+                    ) =>
+                      item.value ===
+                      value
+                  );
+
+                if (
+                  !status
+                ) {
+                  return null;
+                }
+
+                return (
+                  <button
+                    key={`artist-status-${status.value}`}
+                    type="button"
+                    onClick={() =>
+                      toggleStatus(
+                        status.value
+                      )
+                    }
+                    className="min-h-9 border-2 border-black bg-white px-2.5 py-1 text-[10px] font-black uppercase"
+                  >
+                    {
+                      status.label
+                    }{" "}
+                    ×
+                  </button>
+                );
+              }
+            )}
+
+            {selectedListenerRange &&
+              listenerRange && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSelectedListenerRange(
+                      ""
+                    )
+                  }
+                  className="min-h-9 border-2 border-black bg-white px-2.5 py-1 text-[10px] font-black uppercase"
+                >
+                  {
+                    listenerRange.label
+                  }{" "}
+                  ×
+                </button>
+              )}
 
             <button
               type="button"
               onClick={
                 clearArtistFilters
               }
-              className="min-h-10 border-2 border-black bg-white px-2.5 py-1.5 text-[10px] font-black uppercase"
+              className="min-h-9 px-2.5 py-1 text-[10px] font-black uppercase text-black/50 hover:text-black hover:underline"
             >
-              Clear All ×
+              Clear All
             </button>
           </div>
         )}
 
-      {/* MAP */}
+      {/* ======================================
+          MAP
+      ====================================== */}
 
-      <div className="mt-5 sm:mt-6">
+      <div className="w-full">
         <AtlasMap
           mode={
             mapMode
+          }
+
+          onResultsCountChange={
+            setResultCount
+          }
+
+          onClearFilters={
+            isArtistMode
+              ? clearArtistFilters
+              : clearEventFilters
           }
 
           selectedGenres={
@@ -2440,8 +3098,12 @@ export default function AtlasExplorer({
         />
       </div>
 
-      <div className="grid border-x-2 border-b-2 border-black bg-white sm:grid-cols-2">
-        <div className="border-black p-4 sm:border-r-2 sm:p-5">
+      {/* ======================================
+          MAP FOOTER
+      ====================================== */}
+
+      <div className="grid border-y-2 border-black bg-white sm:grid-cols-2">
+        <div className="border-black p-4 sm:border-r-2 sm:px-6">
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-black/50">
             Discover
           </p>
@@ -2453,7 +3115,7 @@ export default function AtlasExplorer({
           </p>
         </div>
 
-        <div className="border-t-2 border-black p-4 sm:border-t-0 sm:p-5">
+        <div className="border-t-2 border-black p-4 sm:border-t-0 sm:px-6">
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-black/50">
             Explore
           </p>

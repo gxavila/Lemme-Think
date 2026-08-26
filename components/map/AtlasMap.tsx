@@ -3,6 +3,7 @@
 import {
   useEffect,
   useRef,
+  useState,
 } from "react";
 
 import mapboxgl, {
@@ -54,6 +55,15 @@ type AtlasMapProps = {
   locationFocusToken?: number;
 
   nearMeFocusToken?: number;
+
+  onResultsCountChange?:
+    (
+      count: number
+    ) => void;
+
+  onClearFilters?:
+    () => void;
+
 };
 
 type ArtistGenre = {
@@ -1832,6 +1842,9 @@ export default function AtlasMap({
   locationFocusToken = 0,
 
   nearMeFocusToken = 0,
+
+  onResultsCountChange,
+  onClearFilters,
 }: AtlasMapProps) {
   const containerRef =
     useRef<HTMLDivElement | null>(
@@ -1943,6 +1956,83 @@ export default function AtlasMap({
 
   const requestSequenceRef =
     useRef(0);
+
+  const [
+    isLoading,
+    setIsLoading,
+  ] =
+    useState(false);
+
+  const [
+    visibleResultCount,
+    setVisibleResultCount,
+  ] =
+    useState(0);
+
+  const [
+    hasCompletedQuery,
+    setHasCompletedQuery,
+  ] =
+    useState(false);
+
+  const [
+    showEmptyState,
+    setShowEmptyState,
+  ] =
+    useState(false);
+
+  const resultsCountCallbackRef =
+    useRef(
+      onResultsCountChange
+    );
+
+  useEffect(
+    () => {
+      resultsCountCallbackRef.current =
+        onResultsCountChange;
+    },
+    [
+      onResultsCountChange,
+    ]
+  );
+
+  useEffect(
+    () => {
+      if (
+        !hasCompletedQuery ||
+        isLoading ||
+        visibleResultCount !==
+          0
+      ) {
+        setShowEmptyState(
+          false
+        );
+
+        return;
+      }
+
+      const timer =
+        window.setTimeout(
+          () => {
+            setShowEmptyState(
+              true
+            );
+          },
+          700
+        );
+
+      return () => {
+        window.clearTimeout(
+          timer
+        );
+      };
+    },
+    [
+      hasCompletedQuery,
+      isLoading,
+      visibleResultCount,
+    ]
+  );
 
   // ============================================
   // POINT STYLE
@@ -2085,6 +2175,10 @@ export default function AtlasMap({
     const requestId =
       ++requestSequenceRef.current;
 
+    setIsLoading(
+      true
+    );
+
     const requestedMode =
       modeRef.current;
 
@@ -2191,6 +2285,13 @@ export default function AtlasMap({
           }
         );
 
+        if (
+          requestId ===
+            requestSequenceRef.current
+        ) {
+          setIsLoading(false);
+        }
+
         return;
       }
 
@@ -2203,12 +2304,31 @@ export default function AtlasMap({
         return;
       }
 
-      source.setData(
+      const eventGeoJson =
         buildEventGeoJson(
           normalizeEvents(
             data
           )
-        ) as any
+        );
+
+      source.setData(
+        eventGeoJson as any
+      );
+
+      setVisibleResultCount(
+        eventGeoJson.features.length
+      );
+
+      resultsCountCallbackRef.current?.(
+        eventGeoJson.features.length
+      );
+
+      setHasCompletedQuery(
+        true
+      );
+
+      setIsLoading(
+        false
       );
 
       return;
@@ -2286,6 +2406,13 @@ export default function AtlasMap({
         }
       );
 
+      if (
+        requestId ===
+          requestSequenceRef.current
+      ) {
+        setIsLoading(false);
+      }
+
       return;
     }
 
@@ -2298,12 +2425,31 @@ export default function AtlasMap({
       return;
     }
 
-    source.setData(
+    const artistGeoJson =
       buildArtistGeoJson(
         normalizeArtists(
           data
         )
-      ) as any
+      );
+
+    source.setData(
+      artistGeoJson as any
+    );
+
+    setVisibleResultCount(
+      artistGeoJson.features.length
+    );
+
+    resultsCountCallbackRef.current?.(
+      artistGeoJson.features.length
+    );
+
+    setHasCompletedQuery(
+      true
+    );
+
+    setIsLoading(
+      false
     );
   }
 
@@ -3689,12 +3835,274 @@ export default function AtlasMap({
     []
   );
 
-  return (
-    <div
-      ref={
-        containerRef
+  function fitMapToResults() {
+    const map =
+      mapRef.current;
+
+    if (!map) {
+      return;
+    }
+
+    const source =
+      map.getSource(
+        SOURCE_ID
+      ) as
+        | GeoJSONSource
+        | undefined;
+
+    if (!source) {
+      return;
+    }
+
+    const sourceData =
+      (
+        source as unknown as {
+          _data?:
+            | PointFeatureCollection
+            | null;
+        }
+      )._data;
+
+    if (
+      !sourceData ||
+      !Array.isArray(
+        sourceData.features
+      ) ||
+      sourceData.features.length ===
+        0
+    ) {
+      return;
+    }
+
+    const bounds =
+      new mapboxgl.LngLatBounds();
+
+    sourceData.features.forEach(
+      (
+        feature
+      ) => {
+        const [
+          longitude,
+          latitude,
+        ] =
+          feature.geometry.coordinates;
+
+        if (
+          !isValidLongitude(
+            longitude
+          ) ||
+          !isValidLatitude(
+            latitude
+          )
+        ) {
+          return;
+        }
+
+        bounds.extend([
+          longitude,
+          latitude,
+        ]);
       }
-      className="h-[580px] w-full sm:h-[620px] lg:h-[680px]"
-    />
+    );
+
+    if (
+      bounds.isEmpty()
+    ) {
+      return;
+    }
+
+    popupRef.current?.remove();
+
+    popupRef.current =
+      null;
+
+    map.stop();
+
+    const northEast =
+      bounds.getNorthEast();
+
+    const southWest =
+      bounds.getSouthWest();
+
+    if (
+      northEast.lng ===
+        southWest.lng &&
+      northEast.lat ===
+        southWest.lat
+    ) {
+      map.easeTo({
+        center:
+          bounds.getCenter(),
+
+        zoom:
+          11,
+
+        duration:
+          700,
+
+        essential:
+          true,
+      });
+
+      return;
+    }
+
+    map.fitBounds(
+      bounds,
+      {
+        padding: {
+          top:
+            70,
+          right:
+            70,
+          bottom:
+            70,
+          left:
+            70,
+        },
+
+        maxZoom:
+          13,
+
+        duration:
+          700,
+      }
+    );
+  }
+
+  function resetMapView() {
+    const map =
+      mapRef.current;
+
+    if (!map) {
+      return;
+    }
+
+    popupRef.current?.remove();
+
+    popupRef.current =
+      null;
+
+    map.stop();
+
+    map.easeTo({
+      center:
+        DEFAULT_CENTER,
+
+      zoom:
+        DEFAULT_ZOOM,
+
+      duration:
+        700,
+
+      essential:
+        true,
+    });
+  }
+
+  return (
+    <div className="relative w-full">
+      <div
+        ref={
+          containerRef
+        }
+        className="h-[calc(100vh-220px)] min-h-[520px] w-full sm:h-[calc(100vh-210px)] lg:h-[calc(100vh-180px)]"
+      />
+
+      {/* ======================================
+          MAP CONTROLS
+      ====================================== */}
+
+      <div className="pointer-events-none absolute left-3 top-3 z-10 flex max-w-[calc(100%-88px)] flex-wrap items-center gap-2 sm:left-4 sm:top-4">
+        <div className="pointer-events-auto inline-flex min-h-10 items-center gap-2 border-2 border-black bg-white/95 px-3 py-2 backdrop-blur-sm">
+          <span
+            aria-hidden="true"
+            className={
+              mode ===
+              "events"
+                ? "h-3.5 w-3.5 shrink-0 rounded-full border-[3px] border-black bg-white"
+                : "h-3.5 w-3.5 shrink-0 rounded-full border-2 border-white bg-black shadow-[0_0_0_1px_#000]"
+            }
+          />
+
+          <span className="text-[10px] font-black uppercase tracking-[0.12em]">
+            {mode ===
+            "events"
+              ? "Event"
+              : "Artist"}
+          </span>
+        </div>
+
+        <button
+          type="button"
+          onClick={
+            fitMapToResults
+          }
+          disabled={
+            !hasCompletedQuery ||
+            visibleResultCount === 0
+          }
+          className="pointer-events-auto inline-flex min-h-10 items-center justify-center border-2 border-black bg-white/95 px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] transition-colors enabled:hover:bg-black enabled:hover:text-white disabled:cursor-not-allowed disabled:opacity-35 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
+        >
+          Fit Results
+        </button>
+
+        <button
+          type="button"
+          onClick={
+            resetMapView
+          }
+          className="pointer-events-auto inline-flex min-h-10 items-center justify-center border-2 border-black bg-white/95 px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] transition-colors hover:bg-black hover:text-white focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
+        >
+          Reset
+        </button>
+      </div>
+      {/* ======================================
+          EMPTY STATE
+      ====================================== */}
+
+      {showEmptyState && (
+          <div className="pointer-events-none absolute inset-0 z-[9] flex items-center justify-center px-5">
+            <div className="pointer-events-auto max-w-sm border-2 border-black bg-white/95 p-5 text-center backdrop-blur-sm sm:p-6">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-black/45">
+                No Results
+              </p>
+
+              <h3 className="mt-2 text-xl font-black uppercase leading-tight tracking-[-0.03em]">
+                No {mode === "events" ? "events" : "artists"} found in this area
+              </h3>
+
+              <p className="mt-3 text-sm font-medium leading-6 text-black/60">
+                Try changing your filters or moving the map to a different area.
+              </p>
+
+              <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">
+                {onClearFilters && (
+                  <button
+                    type="button"
+                    onClick={
+                      onClearFilters
+                    }
+                    className="min-h-10 border-2 border-black bg-black px-4 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-white transition-colors hover:bg-white hover:text-black"
+                  >
+                    Clear Filters
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={
+                    resetMapView
+                  }
+                  className="min-h-10 border-2 border-black bg-white px-4 py-2 text-[10px] font-black uppercase tracking-[0.12em] transition-colors hover:bg-black hover:text-white"
+                >
+                  Reset View
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+    </div>
   );
 }
