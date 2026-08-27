@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import EventsFilters from "./EventsFilters";
 
+import UndergroundAtlasHeader from "@/components/UndergroundAtlasHeader";
 import { createClient } from "@/lib/supabase/server";
 
 export const instant = false;
@@ -1102,46 +1103,48 @@ export default async function EventsPage({
 
   return (
     <main className="min-h-screen bg-[#f3efe4] text-black">
-      {/* ========================================
-          HEADER
-      ======================================== */}
-
-      <header className="border-b-2 border-black bg-white px-5 py-4 sm:px-8">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-6">
-          <Link
-            href={
-              eventMapHref
-            }
-            className="text-xs font-black uppercase tracking-[0.18em] hover:underline"
-          >
-            ← Back to Atlas
-          </Link>
-
-          <p className="text-right text-xs font-black uppercase tracking-[0.18em]">
-            Underground Music Atlas
-          </p>
-        </div>
-      </header>
+      <UndergroundAtlasHeader
+        actionHref={eventMapHref}
+        actionLabel="Back to Map →"
+      />
 
       {/* ========================================
           HERO
       ======================================== */}
 
       <section className="border-b-2 border-black">
-        <div className="mx-auto max-w-6xl px-6 py-10 sm:px-10 sm:py-20">
-          <p className="text-xs font-black uppercase tracking-[0.25em]">
-            Live Music
+        <div className="px-4 py-10 sm:px-6 sm:py-14 lg:px-8 lg:py-16">
+          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-black/45">
+            Events
           </p>
 
-          <h1 className="mt-5 max-w-4xl text-[clamp(3.25rem,10vw,8rem)] font-black uppercase leading-[0.82] tracking-[-0.06em]">
-            Upcoming
-            <br />
-            Shows
+          <h1 className="mt-3 max-w-5xl break-words text-[clamp(2.4rem,13vw,5.8rem)] font-black uppercase leading-[0.87] tracking-[-0.055em]">
+            Upcoming Shows
           </h1>
 
-          <p className="mt-8 max-w-2xl text-lg leading-8 text-black/65">
-            Discover upcoming shows, festivals, showcases, and other events connected to artists across the Underground Music Atlas.
+          <p className="mt-5 max-w-2xl text-base font-medium leading-7 text-black/65 sm:text-lg">
+            Live music, local venues, and upcoming events across the Atlas.
           </p>
+
+          <div className="mt-7 flex flex-wrap gap-2">
+            <span className="border-2 border-black bg-white px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em]">
+              {upcomingEvents.length}{" "}
+              {upcomingEvents.length === 1
+                ? "Event"
+                : "Events"}
+            </span>
+
+            {upcomingEvents.some(
+              (
+                event
+              ) =>
+                event.featured
+            ) && (
+              <span className="border-2 border-black bg-black px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-white">
+                Featured Shows Included
+              </span>
+            )}
+          </div>
         </div>
       </section>
 
@@ -1172,13 +1175,13 @@ export default async function EventsPage({
       ======================================== */}
 
       <section className="border-b-2 border-black">
-        <div className="mx-auto max-w-6xl px-6 py-5 sm:px-10">
+        <div className="px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex flex-wrap items-center gap-2">
             <span className="mr-2 text-[10px] font-black uppercase tracking-[0.16em] text-black/45">
               Showing
             </span>
 
-            <span className="border-2 border-black bg-black px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.1em] text-white">
+            <span className="border-2 border-black bg-black min-h-8 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.1em] text-white">
               {
                 selectedDateLabel
               }
@@ -1192,7 +1195,7 @@ export default async function EventsPage({
                   key={
                     `genre-${genre}`
                   }
-                  className="border-2 border-black bg-white px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.1em]"
+                  className="border-2 border-black bg-white min-h-8 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.1em]"
                 >
                   {
                     genre
@@ -1209,7 +1212,7 @@ export default async function EventsPage({
                   key={
                     `location-${location}`
                   }
-                  className="border-2 border-black bg-white px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.1em]"
+                  className="border-2 border-black bg-white min-h-8 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.1em]"
                 >
                   {
                     location
@@ -1222,32 +1225,14 @@ export default async function EventsPage({
       </section>
 
       {/* ========================================
-          EVENT COUNT
-      ======================================== */}
-
-      <section className="border-b-2 border-black bg-white">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-6 px-6 py-4 sm:px-10">
-          <p className="text-xs font-black uppercase tracking-[0.18em]">
-            Events Found
-          </p>
-
-          <span className="border-2 border-black px-3 py-1.5 text-xs font-black">
-            {
-              upcomingEvents.length
-            }
-          </span>
-        </div>
-      </section>
-
-      {/* ========================================
           EVENTS
       ======================================== */}
 
-      <section className="mx-auto max-w-6xl">
+      <section>
         {!upcomingEvents.length ? (
-          <div className="px-6 py-16 sm:px-10 sm:py-24">
-            <div className="border-2 border-black bg-white p-8 sm:p-10">
-              <p className="text-xs font-black uppercase tracking-[0.2em] text-black/50">
+          <div className="px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
+            <div className="border-2 border-black bg-white p-5 sm:p-8 sm:p-10">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-black/50">
                 Nothing Found
               </p>
 
@@ -1262,7 +1247,7 @@ export default async function EventsPage({
               <div className="mt-8 flex flex-wrap gap-3">
                 <Link
                   href="/events"
-                  className="inline-flex border-2 border-black bg-black px-5 py-3 text-xs font-black uppercase tracking-[0.12em] text-white transition-colors hover:bg-white hover:text-black"
+                  className="inline-flex border-2 border-black bg-black min-h-11 px-4 py-2.5 text-[10px] font-black uppercase tracking-[0.12em] tracking-[0.12em] text-white transition-colors hover:bg-white hover:text-black"
                 >
                   Clear Filters
                 </Link>
@@ -1271,7 +1256,7 @@ export default async function EventsPage({
                   href={
                     eventMapHref
                   }
-                  className="inline-flex border-2 border-black bg-white px-5 py-3 text-xs font-black uppercase tracking-[0.12em] transition-colors hover:bg-black hover:text-white"
+                  className="inline-flex border-2 border-black bg-white min-h-11 px-4 py-2.5 text-[10px] font-black uppercase tracking-[0.12em] tracking-[0.12em] transition-colors hover:bg-black hover:text-white"
                 >
                   Explore Event Map →
                 </Link>
@@ -1279,7 +1264,7 @@ export default async function EventsPage({
             </div>
           </div>
         ) : (
-          <div className="divide-y-2 divide-black">
+          <div className="grid gap-4 px-4 py-7 sm:px-6 sm:py-9 lg:px-8 xl:grid-cols-2">
             {upcomingEvents.map(
               (
                 event,
@@ -1331,17 +1316,17 @@ export default async function EventsPage({
                     }
                     className={
                       isCancelled
-                        ? "bg-red-50"
+                        ? "overflow-hidden border-2 border-red-700 bg-red-50"
                         : event.featured
-                          ? "bg-white"
-                          : ""
+                          ? "overflow-hidden border-2 border-black bg-white"
+                          : "overflow-hidden border-2 border-black bg-white"
                     }
                   >
-                    <div className="grid lg:grid-cols-[180px_1fr_220px]">
+                    <div className="grid sm:grid-cols-[112px_minmax(0,1fr)]">
                       {/* DATE */}
 
-                      <div className="border-b-2 border-black p-5 sm:p-8 lg:border-b-0 lg:border-r-2">
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-black/45">
+                      <div className="flex min-h-[124px] flex-row items-center justify-between border-b-2 border-black bg-black p-4 text-white sm:flex-col sm:items-start sm:justify-between sm:border-b-0 sm:border-r-2">
+                        <p className="text-[9px] font-black uppercase tracking-[0.18em] text-white/50">
                           {String(
                             eventIndex +
                               1
@@ -1351,7 +1336,7 @@ export default async function EventsPage({
                           )}
                         </p>
 
-                        <p className="mt-6 text-lg font-black uppercase leading-tight">
+                        <p className="mt-2 text-sm font-black uppercase leading-tight">
                           {formatEventDate(
                             event.start_at,
                             timeZone
@@ -1359,7 +1344,7 @@ export default async function EventsPage({
                         </p>
 
                         {startTime && (
-                          <p className="mt-4 text-3xl font-black uppercase">
+                          <p className="mt-2 text-2xl font-black uppercase">
                             {
                               startTime
                             }
@@ -1367,7 +1352,7 @@ export default async function EventsPage({
                         )}
 
                         {doorsTime && (
-                          <p className="mt-2 text-[10px] font-black uppercase tracking-[0.12em] text-black/50">
+                          <p className="mt-1 text-[9px] font-black uppercase tracking-[0.12em] text-white/55">
                             Doors{" "}
                             {
                               doorsTime
@@ -1378,22 +1363,22 @@ export default async function EventsPage({
 
                       {/* EVENT */}
 
-                      <div className="border-b-2 border-black p-5 sm:p-8 lg:border-b-0 lg:border-r-2">
+                      <div className="p-4 sm:p-6">
                         <div className="flex flex-wrap gap-2">
-                          <span className="border-2 border-black bg-white px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.1em]">
+                          <span className="border-2 border-black bg-white min-h-8 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.1em]">
                             {formatEventType(
                               event.event_type
                             )}
                           </span>
 
                           {event.featured && (
-                            <span className="border-2 border-black bg-black px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.1em] text-white">
+                            <span className="border-2 border-black bg-black min-h-8 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.1em] text-white">
                               Featured
                             </span>
                           )}
 
                           {event.all_ages && (
-                            <span className="border-2 border-black bg-white px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.1em]">
+                            <span className="border-2 border-black bg-white min-h-8 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.1em]">
                               All Ages
                             </span>
                           )}
@@ -1403,8 +1388,8 @@ export default async function EventsPage({
                             <span
                               className={
                                 isCancelled
-                                  ? "border-2 border-red-700 bg-white px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.1em] text-red-700"
-                                  : "border-2 border-black bg-white px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.1em]"
+                                  ? "border-2 border-red-700 bg-white min-h-8 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.1em] text-red-700"
+                                  : "border-2 border-black bg-white min-h-8 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.1em]"
                               }
                             >
                               {formatStatus(
@@ -1509,8 +1494,9 @@ export default async function EventsPage({
 
                       {/* ACTIONS */}
 
-                      <div className="flex flex-col justify-between gap-8 p-5 sm:p-8">
-                        <div>
+                      <div className="border-t-2 border-black p-5 sm:col-start-2 sm:p-6">
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                          <div>
                           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-black/45">
                             Status
                           </p>
@@ -1540,54 +1526,37 @@ export default async function EventsPage({
                           )}
                         </div>
 
-                        <div className="space-y-3">
-                          <Link
-                            href={`/events/${event.slug}`}
-                            className="flex w-full items-center justify-between border-2 border-black bg-white px-4 py-3 text-xs font-black uppercase transition-colors hover:bg-black hover:text-white"
-                          >
-                            <span>
-                              View Event
-                            </span>
-
-                            <span>
-                              →
-                            </span>
-                          </Link>
-
-                          {venue && (
+                          <div className="flex flex-wrap gap-2 sm:justify-end">
                             <Link
-                              href={`/venues/${venue.slug}`}
-                              className="flex w-full items-center justify-between border-2 border-black bg-white px-4 py-3 text-xs font-black uppercase transition-colors hover:bg-black hover:text-white"
+                              href={`/events/${event.slug}`}
+                              className="inline-flex min-h-10 items-center justify-center border-2 border-black bg-white min-h-9 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.1em] transition-colors hover:bg-black hover:text-white"
                             >
-                              <span>
-                                Venue
-                              </span>
-
-                              <span>
-                                →
-                              </span>
+                              View Event →
                             </Link>
-                          )}
 
-                          {event.ticket_url &&
-                            !isCancelled && (
-                              <a
-                                href={
-                                  event.ticket_url
-                                }
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex w-full items-center justify-between border-2 border-black bg-black px-4 py-3 text-xs font-black uppercase text-white transition-colors hover:bg-white hover:text-black"
+                            {venue && (
+                              <Link
+                                href={`/venues/${venue.slug}`}
+                                className="inline-flex min-h-10 items-center justify-center border-2 border-black bg-white min-h-9 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.1em] transition-colors hover:bg-black hover:text-white"
                               >
-                                <span>
-                                  Tickets
-                                </span>
-
-                                <span>
-                                  ↗
-                                </span>
-                              </a>
+                                Venue →
+                              </Link>
                             )}
+
+                            {event.ticket_url &&
+                              !isCancelled && (
+                                <a
+                                  href={
+                                    event.ticket_url
+                                  }
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex min-h-10 items-center justify-center border-2 border-black bg-black min-h-9 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.1em] text-white transition-colors hover:bg-white hover:text-black"
+                                >
+                                  Tickets ↗
+                                </a>
+                              )}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1604,9 +1573,9 @@ export default async function EventsPage({
       ======================================== */}
 
       <section className="border-t-2 border-black bg-black text-white">
-        <div className="mx-auto flex max-w-6xl flex-col gap-8 px-6 py-12 sm:px-10 sm:py-16 lg:flex-row lg:items-end lg:justify-between">
+        <div className="flex flex-col gap-8 px-4 py-10 sm:px-6 sm:py-12 lg:flex-row lg:items-end lg:justify-between lg:px-8">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-white/55">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/55">
               Keep Exploring
             </p>
 
@@ -1622,14 +1591,14 @@ export default async function EventsPage({
               href={
                 eventMapHref
               }
-              className="inline-flex w-full items-center justify-center border-2 border-white bg-white px-5 py-3 text-xs font-black uppercase tracking-[0.12em] text-black transition-colors hover:bg-black hover:text-white sm:w-auto"
+              className="inline-flex w-full items-center justify-center border-2 border-white bg-white min-h-11 px-4 py-2.5 text-[10px] font-black uppercase tracking-[0.12em] tracking-[0.12em] text-black transition-colors hover:bg-black hover:text-white sm:w-auto"
             >
               Explore Event Map →
             </Link>
 
             <Link
               href="/"
-              className="inline-flex w-full items-center justify-center border-2 border-white bg-black px-5 py-3 text-xs font-black uppercase tracking-[0.12em] text-white transition-colors hover:bg-white hover:text-black sm:w-auto"
+              className="inline-flex w-full items-center justify-center border-2 border-white bg-black min-h-11 px-4 py-2.5 text-[10px] font-black uppercase tracking-[0.12em] tracking-[0.12em] text-white transition-colors hover:bg-white hover:text-black sm:w-auto"
             >
               Explore Artists →
             </Link>

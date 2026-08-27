@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import UndergroundAtlasHeader from "@/components/UndergroundAtlasHeader";
 import { createClient } from "@/lib/supabase/server";
 
 export const instant = false;
@@ -1035,100 +1036,164 @@ export default async function ScenePage({
     sceneLocation?.name ??
     "This Location";
 
+  const sceneGenreCounts =
+    new Map<
+      string,
+      {
+        id: string;
+        name: string;
+        slug: string;
+        count: number;
+      }
+    >();
+
+  artists.forEach(
+    (
+      artist
+    ) => {
+      artist.genres.forEach(
+        (
+          genre
+        ) => {
+          const existing =
+            sceneGenreCounts.get(
+              genre.id
+            );
+
+          sceneGenreCounts.set(
+            genre.id,
+            {
+              id:
+                genre.id,
+
+              name:
+                genre.name,
+
+              slug:
+                genre.slug,
+
+              count:
+                (
+                  existing?.count ??
+                  0
+                ) +
+                1,
+            }
+          );
+        }
+      );
+    }
+  );
+
+  const sceneGenres =
+    [
+      ...sceneGenreCounts.values(),
+    ]
+      .sort(
+        (
+          a,
+          b
+        ) =>
+          b.count -
+          a.count
+      )
+      .slice(
+        0,
+        5
+      );
+
+  const shortDescription =
+    scene.description_short ??
+    scene.description_long ??
+    null;
+
   return (
     <main className="min-h-screen bg-[#f3efe4] text-black">
       {/* ========================================
-          TOP BAR
+          HEADER
       ======================================== */}
 
-      <header className="border-b-2 border-black bg-white px-5 py-4 sm:px-8">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-6">
-          <Link
-            href="/"
-            className="text-xs font-black uppercase tracking-[0.18em] hover:underline"
-          >
-            ← Back to Atlas
-          </Link>
-
-          {locationLabel && (
-            <span className="hidden text-xs font-black uppercase tracking-[0.18em] sm:block">
-              {
-                locationLabel
-              }
-            </span>
-          )}
-        </div>
-      </header>
+      <UndergroundAtlasHeader
+        actionHref="/scenes"
+        actionLabel="All Scenes →"
+      />
 
       {/* ========================================
-          HERO
+          SCENE INTRO
       ======================================== */}
 
       <section className="border-b-2 border-black">
-        <div className="mx-auto grid max-w-6xl lg:grid-cols-[1.25fr_0.75fr]">
-          {/* COPY */}
-
-          <div className="flex flex-col justify-between border-black p-6 sm:p-10 lg:min-h-[620px] lg:border-r-2">
+        <div className="grid lg:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="flex flex-col justify-between border-black px-4 py-8 sm:px-6 sm:py-10 lg:min-h-[460px] lg:border-r-2 lg:px-8 lg:py-12">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.25em]">
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-black/45">
                 Scene
               </p>
 
               {locationLabel && (
-                <p className="mt-4 text-sm font-black uppercase tracking-[0.12em]">
-                  {
-                    locationLabel
-                  }
+                <p className="mt-3 text-[11px] font-black uppercase tracking-[0.13em]">
+                  {locationLabel}
                 </p>
               )}
             </div>
 
-            <div className="py-10 sm:py-12">
-              <h1 className="max-w-4xl break-words text-[clamp(3rem,9vw,8rem)] font-black uppercase leading-[0.84] tracking-[-0.055em]">
-                {
-                  scene.name
-                }
+            <div className="py-8 lg:py-10">
+              <h1 className="max-w-5xl break-words break-words text-[clamp(2.5rem,14vw,6rem)] font-black uppercase leading-[0.86] tracking-[-0.055em]">
+                {scene.name}
               </h1>
 
               {scene.tagline && (
-                <p className="mt-8 max-w-2xl text-xl font-bold leading-8 sm:text-2xl">
-                  {
-                    scene.tagline
-                  }
+                <p className="mt-6 max-w-2xl text-lg font-bold leading-7 sm:text-xl">
+                  {scene.tagline}
                 </p>
               )}
             </div>
 
-            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-              <Link
-                href="/"
-                className="inline-flex w-full items-center justify-center border-2 border-black bg-black px-5 py-3 text-xs font-black uppercase text-white transition-colors hover:bg-white hover:text-black sm:w-auto"
-              >
-                Explore on Map
-              </Link>
+            <div>
+              <div className="flex flex-wrap gap-2">
+                <span className="border-2 border-black bg-white px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em]">
+                  {artists.length}{" "}
+                  {artists.length ===
+                  1
+                    ? "Artist"
+                    : "Artists"}
+                </span>
 
-              <a
-                href="#artists"
-                className="inline-flex w-full items-center justify-center border-2 border-black bg-white px-5 py-3 text-xs font-black uppercase transition-colors hover:bg-black hover:text-white sm:w-auto"
-              >
-                Explore Artists
-              </a>
+                {sceneGenres.map(
+                  (
+                    genre
+                  ) => (
+                    <span
+                      key={
+                        genre.id
+                      }
+                      className="border-2 border-black bg-black min-h-9 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.1em] text-white"
+                    >
+                      {genre.name}
+                    </span>
+                  )
+                )}
+              </div>
 
-              {venues.length >
-                0 && (
-                <a
-                  href="#venues"
-                  className="inline-flex w-full items-center justify-center border-2 border-black bg-white px-5 py-3 text-xs font-black uppercase transition-colors hover:bg-black hover:text-white sm:w-auto"
+              <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                <Link
+                  href="/"
+                  className="inline-flex min-h-11 w-full items-center justify-center border-2 border-black bg-black px-4 py-2.5 text-[10px] font-black uppercase tracking-[0.12em] text-white transition-colors hover:bg-white hover:text-black sm:w-auto"
                 >
-                  Explore Venues
+                  Explore on Map
+                </Link>
+
+                <a
+                  href="#artists"
+                  className="inline-flex min-h-11 w-full items-center justify-center border-2 border-black bg-white px-4 py-2.5 text-[10px] font-black uppercase tracking-[0.12em] transition-colors hover:bg-black hover:text-white sm:w-auto"
+                >
+                  View Artists
                 </a>
-              )}
+              </div>
             </div>
           </div>
 
-          {/* HERO IMAGE */}
-
-          <div className="relative aspect-[4/3] overflow-hidden bg-black lg:aspect-auto lg:min-h-[620px]">
+          <div className="relative aspect-[16/10] overflow-hidden bg-black lg:aspect-auto lg:min-h-[460px]">
             {sceneHeroUrl ? (
               <>
                 <img
@@ -1145,18 +1210,16 @@ export default async function ScenePage({
                   }}
                 />
 
-                <div className="absolute inset-0 bg-black/15" />
+                <div className="absolute inset-0 bg-black/10" />
               </>
             ) : (
-              <div className="flex h-full flex-col justify-end p-8 text-white lg:min-h-[620px]">
-                <p className="text-xs font-black uppercase tracking-[0.2em]">
+              <div className="flex h-full min-h-[320px] flex-col justify-end p-6 text-white sm:p-8">
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/60">
                   Underground Atlas
                 </p>
 
-                <p className="mt-3 max-w-sm text-4xl font-black uppercase leading-[0.9]">
-                  {
-                    scene.name
-                  }
+                <p className="mt-2 max-w-sm text-4xl font-black uppercase leading-[0.88] tracking-[-0.04em]">
+                  {scene.name}
                 </p>
               </div>
             )}
@@ -1168,29 +1231,21 @@ export default async function ScenePage({
           ABOUT
       ======================================== */}
 
-      <section className="border-b-2 border-black">
-        <div className="mx-auto grid max-w-6xl lg:grid-cols-[240px_1fr]">
-          <div className="border-black p-6 sm:p-8 lg:border-r-2">
-            <p className="text-xs font-black uppercase tracking-[0.2em]">
+      <section className="border-b-2 border-black bg-white">
+        <div className="grid lg:grid-cols-[220px_minmax(0,1fr)]">
+          <div className="border-black px-4 py-6 sm:px-6 lg:border-r-2 lg:px-8">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-black/45">
               About the Scene
             </p>
           </div>
 
-          <div className="p-6 sm:p-10">
-            {scene.description_long ? (
-              <p className="max-w-3xl whitespace-pre-line text-lg leading-8">
-                {
-                  scene.description_long
-                }
-              </p>
-            ) : scene.description_short ? (
-              <p className="max-w-3xl text-lg leading-8">
-                {
-                  scene.description_short
-                }
+          <div className="px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+            {shortDescription ? (
+              <p className="max-w-4xl whitespace-pre-line text-base leading-7 text-black/75 sm:text-lg sm:leading-8">
+                {shortDescription}
               </p>
             ) : (
-              <p className="text-lg text-black/55">
+              <p className="text-base text-black/50">
                 Scene description coming soon.
               </p>
             )}
@@ -1206,22 +1261,20 @@ export default async function ScenePage({
         id="artists"
         className="border-b-2 border-black"
       >
-        <div className="mx-auto max-w-6xl px-6 py-12 sm:px-10 sm:py-16">
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+        <div className="px-4 py-7 sm:px-6 sm:py-9 lg:px-8 lg:py-12">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.2em]">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-black/45">
                 Artists
               </p>
 
-              <h2 className="mt-2 text-4xl font-black uppercase sm:text-5xl">
+              <h2 className="mt-1 text-[clamp(2rem,4vw,3.25rem)] font-black uppercase leading-[0.92] tracking-[-0.04em]">
                 In This Scene
               </h2>
             </div>
 
-            <p className="text-sm font-bold uppercase">
-              {
-                artists.length
-              }{" "}
+            <p className="text-[10px] font-black uppercase tracking-[0.12em] text-black/45">
+              {artists.length}{" "}
               {artists.length ===
               1
                 ? "Artist"
@@ -1230,13 +1283,13 @@ export default async function ScenePage({
           </div>
 
           {!artists.length ? (
-            <div className="mt-8 border-2 border-black bg-white p-8">
+            <div className="mt-7 border-2 border-black bg-white p-5 sm:p-8">
               <p className="font-bold">
                 No published artists are currently assigned to this scene.
               </p>
             </div>
           ) : (
-            <div className="mt-8 grid gap-6 md:grid-cols-2">
+            <div className="mt-7 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
               {artists.map(
                 (
                   artist
@@ -1245,13 +1298,13 @@ export default async function ScenePage({
                     key={
                       artist.id
                     }
-                    className="group border-2 border-black bg-white"
+                    className="group overflow-hidden border-2 border-black bg-white"
                   >
                     <Link
                       href={`/artists/${artist.slug}`}
                       className="block"
                     >
-                      <div className="relative aspect-[4/3] overflow-hidden border-b-2 border-black bg-black">
+                      <div className="relative aspect-[16/10] overflow-hidden border-b-2 border-black bg-black">
                         {artist.image_url ? (
                           <img
                             src={
@@ -1260,20 +1313,18 @@ export default async function ScenePage({
                             alt={
                               artist.name
                             }
-                            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.025]"
+                            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
                           />
                         ) : (
-                          <div className="flex h-full items-end p-6 text-white">
-                            <p className="text-3xl font-black uppercase">
-                              {
-                                artist.name
-                              }
+                          <div className="flex h-full items-end p-5 text-white">
+                            <p className="text-2xl font-black uppercase leading-[0.9]">
+                              {artist.name}
                             </p>
                           </div>
                         )}
 
                         {artist.is_primary_scene && (
-                          <span className="absolute left-3 top-3 border-2 border-black bg-[#f3efe4] px-2 py-1 text-[9px] font-black uppercase">
+                          <span className="absolute left-3 top-3 border-2 border-black bg-[#f3efe4] min-h-7 px-2 py-1 text-[9px] font-black uppercase tracking-[0.08em]">
                             Primary Scene
                           </span>
                         )}
@@ -1285,15 +1336,13 @@ export default async function ScenePage({
                         href={`/artists/${artist.slug}`}
                         className="inline-block"
                       >
-                        <h3 className="text-2xl font-black uppercase hover:underline">
-                          {
-                            artist.name
-                          }
+                        <h3 className="text-2xl font-black uppercase leading-tight tracking-[-0.03em] hover:underline">
+                          {artist.name}
                         </h3>
                       </Link>
 
                       {artist.location && (
-                        <p className="mt-2 text-xs font-bold uppercase tracking-[0.1em] text-black/60">
+                        <p className="mt-2 text-[10px] font-black uppercase tracking-[0.1em] text-black/45">
                           {[
                             artist
                               .location
@@ -1318,41 +1367,42 @@ export default async function ScenePage({
                       {artist.genres.length >
                         0 && (
                         <div className="mt-4 flex flex-wrap gap-2">
-                          {artist.genres.map(
-                            (
-                              genre
-                            ) => (
-                              <span
-                                key={
-                                  genre.id
-                                }
-                                className={
-                                  genre.is_primary
-                                    ? "border-2 border-black bg-black px-2 py-1 text-[10px] font-black uppercase text-white"
-                                    : "border-2 border-black px-2 py-1 text-[10px] font-black uppercase"
-                                }
-                              >
-                                {
-                                  genre.name
-                                }
-                              </span>
+                          {artist.genres
+                            .slice(
+                              0,
+                              4
                             )
-                          )}
+                            .map(
+                              (
+                                genre
+                              ) => (
+                                <span
+                                  key={
+                                    genre.id
+                                  }
+                                  className={
+                                    genre.is_primary
+                                      ? "border-2 border-black bg-black min-h-7 px-2 py-1 text-[9px] font-black uppercase text-white"
+                                      : "border-2 border-black min-h-7 px-2 py-1 text-[9px] font-black uppercase"
+                                  }
+                                >
+                                  {genre.name}
+                                </span>
+                              )
+                            )}
                         </div>
                       )}
 
                       {artist.bio_short && (
-                        <p className="mt-5 line-clamp-3 text-sm leading-6 text-black/70">
-                          {
-                            artist.bio_short
-                          }
+                        <p className="mt-4 line-clamp-3 text-sm leading-6 text-black/65">
+                          {artist.bio_short}
                         </p>
                       )}
 
-                      <div className="mt-6 border-t-2 border-black pt-4">
+                      <div className="mt-5 border-t-2 border-black pt-4">
                         <Link
                           href={`/artists/${artist.slug}`}
-                          className="text-xs font-black uppercase tracking-[0.15em] hover:underline"
+                          className="text-[10px] font-black uppercase tracking-[0.14em] hover:underline"
                         >
                           Explore Artist →
                         </Link>
@@ -1375,33 +1425,21 @@ export default async function ScenePage({
           id="venues"
           className="border-b-2 border-black bg-white"
         >
-          <div className="mx-auto max-w-6xl px-6 py-12 sm:px-10 sm:py-16">
-            <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+          <div className="px-4 py-7 sm:px-6 sm:py-9 lg:px-8 lg:py-12">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.2em]">
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-black/45">
                   Places
                 </p>
 
-                <h2 className="mt-2 text-4xl font-black uppercase sm:text-5xl">
+                <h2 className="mt-1 text-[clamp(2rem,4vw,3.25rem)] font-black uppercase leading-[0.92] tracking-[-0.04em]">
                   Venues in{" "}
-                  {
-                    sceneLocationName
-                  }
+                  {sceneLocationName}
                 </h2>
-
-                <p className="mt-4 max-w-2xl text-sm leading-6 text-black/60">
-                  Active Atlas venues connected to the{" "}
-                  {
-                    sceneLocationName
-                  }{" "}
-                  area.
-                </p>
               </div>
 
-              <p className="text-sm font-bold uppercase">
-                {
-                  venues.length
-                }{" "}
+              <p className="text-[10px] font-black uppercase tracking-[0.12em] text-black/45">
+                {venues.length}{" "}
                 {venues.length ===
                 1
                   ? "Venue"
@@ -1410,13 +1448,13 @@ export default async function ScenePage({
             </div>
 
             {!venues.length ? (
-              <div className="mt-8 border-2 border-black bg-[#f3efe4] p-8">
+              <div className="mt-7 border-2 border-black bg-[#f3efe4] p-6">
                 <p className="font-bold">
                   No active Atlas venues are currently listed for this location.
                 </p>
               </div>
             ) : (
-              <div className="mt-8 grid gap-5 md:grid-cols-2">
+              <div className="mt-7 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {venues.map(
                   (
                     venue
@@ -1425,94 +1463,71 @@ export default async function ScenePage({
                       key={
                         venue.id
                       }
-                      className="border-2 border-black bg-[#f3efe4]"
+                      className="border-2 border-black bg-[#f3efe4] p-5"
                     >
-                      <div className="p-6">
-                        <div className="flex flex-wrap items-start justify-between gap-4">
-                          <div>
-                            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-black/45">
-                              Venue
-                            </p>
-
-                            <Link
-                              href={`/venues/${venue.slug}`}
-                              className="mt-2 inline-block"
-                            >
-                              <h3 className="text-2xl font-black uppercase leading-tight hover:underline">
-                                {
-                                  venue.name
-                                }
-                              </h3>
-                            </Link>
-                          </div>
-
-                          <span className="border-2 border-black bg-white px-2.5 py-2 text-[9px] font-black uppercase">
-                            {
-                              venue.upcoming_event_count
-                            }{" "}
-                            {venue.upcoming_event_count ===
-                            1
-                              ? "Show"
-                              : "Shows"}
-                          </span>
-                        </div>
-
-                        {venue.address_line_1 && (
-                          <p className="mt-4 text-sm font-bold">
-                            {
-                              venue.address_line_1
-                            }
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-[9px] font-black uppercase tracking-[0.16em] text-black/45">
+                            Venue
                           </p>
-                        )}
 
-                        {venue.next_event && (
-                          <div className="mt-6 border-t-2 border-black pt-5">
-                            <p className="text-[9px] font-black uppercase tracking-[0.16em] text-black/45">
-                              Next Show
-                            </p>
-
-                            <Link
-                              href={`/events/${venue.next_event.slug}`}
-                              className="group mt-2 block"
-                            >
-                              <p className="text-lg font-black uppercase group-hover:underline">
-                                {
-                                  venue.next_event.title
-                                }
-                              </p>
-
-                              <p className="mt-2 text-xs font-bold uppercase tracking-[0.08em] text-black/55">
-                                {formatEventDate(
-                                  venue.next_event.start_at,
-                                  venue.next_event.timezone ??
-                                    "America/Los_Angeles"
-                                )}
-                              </p>
-                            </Link>
-                          </div>
-                        )}
-
-                        <div className="mt-6 flex flex-col gap-2 border-t-2 border-black pt-4 sm:flex-row sm:flex-wrap">
                           <Link
                             href={`/venues/${venue.slug}`}
-                            className="inline-flex w-full items-center justify-center border-2 border-black bg-black px-4 py-2.5 text-[10px] font-black uppercase tracking-[0.1em] text-white transition-colors hover:bg-white hover:text-black sm:w-auto"
+                            className="mt-1 inline-block"
                           >
-                            Explore Venue →
+                            <h3 className="text-xl font-black uppercase leading-tight tracking-[-0.025em] hover:underline">
+                              {venue.name}
+                            </h3>
                           </Link>
-
-                          {venue.website_url && (
-                            <a
-                              href={
-                                venue.website_url
-                              }
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex w-full items-center justify-center border-2 border-black bg-white px-4 py-2.5 text-[10px] font-black uppercase tracking-[0.1em] transition-colors hover:bg-black hover:text-white sm:w-auto"
-                            >
-                              Website ↗
-                            </a>
-                          )}
                         </div>
+
+                        <span className="shrink-0 border-2 border-black bg-white min-h-7 px-2 py-1 text-[9px] font-black uppercase">
+                          {venue.upcoming_event_count}{" "}
+                          {venue.upcoming_event_count ===
+                          1
+                            ? "Show"
+                            : "Shows"}
+                        </span>
+                      </div>
+
+                      {venue.address_line_1 && (
+                        <p className="mt-3 text-sm font-bold">
+                          {venue.address_line_1}
+                        </p>
+                      )}
+
+                      {venue.next_event && (
+                        <div className="mt-4 border-t-2 border-black pt-4">
+                          <p className="text-[9px] font-black uppercase tracking-[0.15em] text-black/45">
+                            Next Show
+                          </p>
+
+                          <Link
+                            href={`/events/${venue.next_event.slug}`}
+                            className="mt-1 block"
+                          >
+                            <p className="text-base font-black uppercase hover:underline">
+                              {venue.next_event.title}
+                            </p>
+
+                            <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.08em] text-black/50">
+                              {formatEventDate(
+                                venue.next_event.start_at,
+                                venue.next_event.timezone ??
+                                  "America/Los_Angeles"
+                              )}
+                            </p>
+                          </Link>
+                        </div>
+                      )}
+
+                      <div className="mt-4 border-t-2 border-black pt-4">
+                        <Link
+                          href={`/venues/${venue.slug}`}
+                          className="text-[10px] font-black uppercase tracking-[0.13em] hover:underline"
+                        >
+                          Explore Venue →
+                        </Link>
                       </div>
                     </article>
                   )
@@ -1528,21 +1543,19 @@ export default async function ScenePage({
       ======================================== */}
 
       {sceneLocation && (
-        <section className="bg-white">
-          <div className="mx-auto grid max-w-6xl lg:grid-cols-[1fr_0.7fr]">
-            <div className="border-black p-6 sm:p-10 lg:border-r-2">
-              <p className="text-xs font-black uppercase tracking-[0.2em]">
+        <section>
+          <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.7fr)]">
+            <div className="border-black px-4 py-10 sm:px-6 lg:border-r-2 lg:px-8">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-black/45">
                 Location
               </p>
 
-              <h2 className="mt-3 text-4xl font-black uppercase sm:text-5xl">
-                {
-                  sceneLocation.city ??
-                  sceneLocation.name
-                }
+              <h2 className="mt-2 text-4xl font-black uppercase tracking-[-0.04em] sm:text-5xl">
+                {sceneLocation.city ??
+                  sceneLocation.name}
               </h2>
 
-              <p className="mt-3 text-lg font-bold">
+              <p className="mt-3 text-base font-bold">
                 {[
                   sceneLocation.region,
                   sceneLocation.country,
@@ -1554,27 +1567,40 @@ export default async function ScenePage({
                     ", "
                   )}
               </p>
+
+              {sceneLocation.latitude !==
+                null &&
+                sceneLocation.longitude !==
+                  null && (
+                <p className="mt-5 text-[10px] font-black uppercase tracking-[0.11em] text-black/40">
+                  {sceneLocation.latitude.toFixed(
+                    4
+                  )}
+                  ,{" "}
+                  {sceneLocation.longitude.toFixed(
+                    4
+                  )}
+                </p>
+              )}
             </div>
 
-            <div className="flex flex-col justify-between gap-8 bg-[#f3efe4] p-6 sm:p-10">
+            <div className="flex flex-col justify-between gap-8 bg-black px-4 py-10 text-white sm:px-6 lg:px-8">
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.2em]">
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/50">
                   Keep Exploring
                 </p>
 
-                <p className="mt-4 max-w-md text-lg leading-7">
-                  Return to the atlas to explore artists and scenes around{" "}
-                  {
-                    sceneLocation.city ??
-                    sceneLocation.name
-                  }
+                <p className="mt-3 max-w-md text-lg font-bold leading-7">
+                  Explore artists and events around{" "}
+                  {sceneLocation.city ??
+                    sceneLocation.name}
                   .
                 </p>
               </div>
 
               <Link
                 href="/"
-                className="inline-flex w-full items-center justify-center border-2 border-black bg-black px-5 py-3 text-xs font-black uppercase text-white transition-colors hover:bg-white hover:text-black sm:w-fit"
+                className="inline-flex min-h-11 w-full items-center justify-center border-2 border-white bg-white px-5 py-2.5 text-[10px] font-black uppercase tracking-[0.12em] text-black transition-colors hover:bg-black hover:text-white sm:w-fit"
               >
                 Explore on Map →
               </Link>

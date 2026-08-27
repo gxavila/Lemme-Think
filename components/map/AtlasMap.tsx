@@ -4006,15 +4006,15 @@ export default function AtlasMap({
         ref={
           containerRef
         }
-        className="h-[calc(100vh-220px)] min-h-[520px] w-full sm:h-[calc(100vh-210px)] lg:h-[calc(100vh-180px)]"
+        className="h-[calc(100dvh-250px)] min-h-[430px] w-full sm:h-[calc(100dvh-210px)] sm:min-h-[500px] lg:h-[calc(100dvh-180px)]"
       />
 
       {/* ======================================
           MAP CONTROLS
       ====================================== */}
 
-      <div className="pointer-events-none absolute left-3 top-3 z-10 flex max-w-[calc(100%-88px)] flex-wrap items-center gap-2 sm:left-4 sm:top-4">
-        <div className="pointer-events-auto inline-flex min-h-10 items-center gap-2 border-2 border-black bg-white/95 px-3 py-2 backdrop-blur-sm">
+      <div className="pointer-events-none absolute left-2 top-2 z-10 flex max-w-[calc(100%-16px)] flex-wrap items-center gap-1.5 sm:left-4 sm:top-4 sm:max-w-[calc(100%-88px)] sm:gap-2">
+        <div className="pointer-events-auto inline-flex min-h-9 items-center gap-1.5 border-2 border-black bg-white/95 px-2.5 py-1.5 backdrop-blur-sm sm:min-h-10 sm:gap-2 sm:px-3 sm:py-2">
           <span
             aria-hidden="true"
             className={
@@ -4042,7 +4042,7 @@ export default function AtlasMap({
             !hasCompletedQuery ||
             visibleResultCount === 0
           }
-          className="pointer-events-auto inline-flex min-h-10 items-center justify-center border-2 border-black bg-white/95 px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] transition-colors enabled:hover:bg-black enabled:hover:text-white disabled:cursor-not-allowed disabled:opacity-35 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
+          className="pointer-events-auto inline-flex min-h-9 items-center justify-center border-2 border-black bg-white/95 px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.1em] transition-colors enabled:hover:bg-black enabled:hover:text-white disabled:cursor-not-allowed disabled:opacity-35 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 sm:min-h-10 sm:px-3 sm:py-2 sm:text-[10px] sm:tracking-[0.12em]"
         >
           Fit Results
         </button>
@@ -4052,7 +4052,7 @@ export default function AtlasMap({
           onClick={
             resetMapView
           }
-          className="pointer-events-auto inline-flex min-h-10 items-center justify-center border-2 border-black bg-white/95 px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] transition-colors hover:bg-black hover:text-white focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
+          className="pointer-events-auto inline-flex min-h-9 items-center justify-center border-2 border-black bg-white/95 px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.1em] transition-colors hover:bg-black hover:text-white focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 sm:min-h-10 sm:px-3 sm:py-2 sm:text-[10px] sm:tracking-[0.12em]"
         >
           Reset
         </button>
@@ -4063,7 +4063,7 @@ export default function AtlasMap({
 
       {showEmptyState && (
           <div className="pointer-events-none absolute inset-0 z-[9] flex items-center justify-center px-5">
-            <div className="pointer-events-auto max-w-sm border-2 border-black bg-white/95 p-5 text-center backdrop-blur-sm sm:p-6">
+            <div className="pointer-events-auto max-w-[calc(100vw-32px)] border-2 border-black bg-white/95 p-4 text-center backdrop-blur-sm sm:max-w-sm sm:p-6">
               <p className="text-xs font-black uppercase tracking-[0.18em] text-black/45">
                 No Results
               </p>

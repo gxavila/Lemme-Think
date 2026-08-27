@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import UndergroundAtlasHeader from "@/components/UndergroundAtlasHeader";
 import { createClient } from "@/lib/supabase/server";
 
 export const instant = false;
@@ -489,168 +490,124 @@ export default async function EventPage({
 
   return (
     <main className="min-h-screen bg-[#f3efe4] text-black">
-      {/* ========================================
-          TOP BAR
-      ======================================== */}
-
-      <header className="border-b-2 border-black bg-white px-5 py-4 sm:px-8">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-6">
-          <Link
-            href="/"
-            className="text-xs font-black uppercase tracking-[0.18em] hover:underline"
-          >
-            ← Back to Atlas
-          </Link>
-
-          <span className="text-right text-xs font-black uppercase tracking-[0.18em]">
-            Event
-          </span>
-        </div>
-      </header>
+      <UndergroundAtlasHeader
+        actionHref="/events"
+        actionLabel="All Events →"
+      />
 
       {/* ========================================
-          HERO
+          EVENT HERO
       ======================================== */}
 
       <section className="border-b-2 border-black">
-        <div className="mx-auto grid max-w-6xl lg:grid-cols-[1.15fr_0.85fr]">
-          {/* HERO COPY */}
+        <div className="grid lg:grid-cols-[minmax(0,1fr)_300px]">
+          <div className="border-black px-4 py-8 sm:px-6 sm:py-10 lg:border-r-2 lg:px-8 lg:py-12">
+            <div className="flex flex-wrap gap-2">
+              <span className="border-2 border-black bg-white min-h-8 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.1em]">
+                {formatEventType(
+                  event.event_type
+                )}
+              </span>
 
-<div className="flex flex-col justify-between border-black p-6 sm:p-10 lg:min-h-[620px] lg:border-r-2">
-            <div>
-              <div className="flex flex-wrap gap-2">
-                <span className="border-2 border-black bg-white px-3 py-2 text-[10px] font-black uppercase">
-                  {formatEventType(
-                    event.event_type
+              {event.featured && (
+                <span className="border-2 border-black bg-black min-h-8 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.1em] text-white">
+                  Featured
+                </span>
+              )}
+
+              {event.all_ages && (
+                <span className="border-2 border-black bg-white min-h-8 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.1em]">
+                  All Ages
+                </span>
+              )}
+
+              {event.status !==
+                "scheduled" && (
+                <span
+                  className={
+                    isCancelled
+                      ? "border-2 border-red-700 bg-white min-h-8 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.1em] text-red-700"
+                      : "border-2 border-black bg-white min-h-8 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.1em]"
+                  }
+                >
+                  {formatStatus(
+                    event.status
                   )}
                 </span>
+              )}
+            </div>
 
-                {event.featured && (
-                  <span className="border-2 border-black bg-black px-3 py-2 text-[10px] font-black uppercase text-white">
-                    Featured
-                  </span>
-                )}
+            <p className="mt-8 text-[11px] font-black uppercase tracking-[0.18em] text-black/50">
+              {formatDate(
+                event.start_at,
+                timeZone
+              )}
+            </p>
 
-                {event.all_ages && (
-                  <span className="border-2 border-black bg-white px-3 py-2 text-[10px] font-black uppercase">
-                    All Ages
-                  </span>
-                )}
+            <h1 className="mt-3 max-w-5xl break-words break-words text-[clamp(2.5rem,14vw,5.6rem)] font-black uppercase leading-[0.87] tracking-[-0.055em]">
+              {event.title}
+            </h1>
 
-                {event.status !==
-                  "scheduled" && (
-                  <span
-                    className={
-                      isCancelled
-                        ? "border-2 border-red-700 bg-white px-3 py-2 text-[10px] font-black uppercase text-red-700"
-                        : "border-2 border-black bg-white px-3 py-2 text-[10px] font-black uppercase"
-                    }
+            {(venue?.name ||
+              locationLabel) && (
+              <div className="mt-7">
+                {venue?.name && (
+                  <Link
+                    href={`/venues/${venue.slug}`}
+                    className="text-lg font-black uppercase hover:underline"
                   >
-                    {formatStatus(
-                      event.status
-                    )}
-                  </span>
+                    {venue.name} →
+                  </Link>
+                )}
+
+                {locationLabel && (
+                  <p className="mt-1 text-sm font-bold uppercase tracking-[0.08em] text-black/55">
+                    {locationLabel}
+                  </p>
                 )}
               </div>
-            </div>
-
-            <div className="py-12">
-              <p className="text-xs font-black uppercase tracking-[0.2em]">
-                {formatDate(
-                  event.start_at,
-                  timeZone
-                )}
-              </p>
-
-              <h1 className="mt-5 max-w-4xl break-words text-[clamp(3rem,8vw,7rem)] font-black uppercase leading-[0.86] tracking-[-0.05em]">
-                {
-                  event.title
-                }
-              </h1>
-            </div>
-
-            <div>
-              {venue?.name && (
-                <Link
-                  href={`/venues/${venue.slug}`}
-                  className="group inline-flex items-center gap-2 text-lg font-black uppercase"
-                >
-                  <span className="group-hover:underline">
-                    {
-                      venue.name
-                    }
-                  </span>
-
-                  <span
-                    className="text-sm"
-                    aria-hidden="true"
-                  >
-                    →
-                  </span>
-                </Link>
-              )}
-
-              {locationLabel && (
-                <p className="mt-2 text-sm font-bold uppercase tracking-[0.08em]">
-                  {
-                    locationLabel
-                  }
-                </p>
-              )}
-            </div>
+            )}
           </div>
 
-          {/* ========================================
-              TIME PANEL
-          ======================================== */}
-
-<div className="flex flex-col justify-between gap-10 bg-black p-6 text-white sm:p-10 lg:min-h-[620px] lg:gap-0">
+          <aside className="flex flex-col justify-between gap-8 bg-black px-4 py-8 text-white sm:px-6 lg:px-8 lg:py-12">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.22em] text-white/60">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/50">
                 Show Time
               </p>
 
               {startTime && (
-                <p className="mt-4 text-5xl font-black uppercase sm:text-6xl">
-                  {
-                    startTime
-                  }
+                <p className="mt-3 text-5xl font-black uppercase leading-none tracking-[-0.05em]">
+                  {startTime}
                 </p>
               )}
 
-              {doorsTime && (
-                <p className="mt-4 text-sm font-black uppercase tracking-[0.1em]">
-                  Doors{" "}
-                  {
-                    doorsTime
-                  }
-                </p>
-              )}
+              <div className="mt-5 space-y-1 text-[11px] font-black uppercase tracking-[0.1em] text-white/65">
+                {doorsTime && (
+                  <p>
+                    Doors {doorsTime}
+                  </p>
+                )}
 
-              {endTime && (
-                <p className="mt-2 text-sm font-bold uppercase tracking-[0.1em] text-white/60">
-                  Ends{" "}
-                  {
-                    endTime
-                  }
-                </p>
-              )}
+                {endTime && (
+                  <p>
+                    Ends {endTime}
+                  </p>
+                )}
+              </div>
             </div>
 
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.12em] text-white/50">
+              <p className="text-[9px] font-black uppercase tracking-[0.14em] text-white/40">
                 Timezone
               </p>
 
-              <p className="mt-2 font-black">
-                {
-                  timeZone
-                }
+              <p className="mt-1 text-sm font-black">
+                {timeZone}
               </p>
 
               {(event.ticket_url ||
                 event.event_url) && (
-                <div className="mt-8 flex flex-wrap gap-3">
+                <div className="mt-6 flex flex-col gap-2">
                   {event.ticket_url &&
                     !isCancelled && (
                     <a
@@ -659,7 +616,7 @@ export default async function EventPage({
                       }
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="border-2 border-white bg-white px-5 py-3 text-xs font-black uppercase tracking-[0.12em] text-black transition-colors hover:bg-black hover:text-white"
+                      className="inline-flex min-h-11 items-center justify-center border-2 border-white bg-white px-4 py-2.5 text-[10px] font-black uppercase tracking-[0.12em] text-black transition-colors hover:bg-black hover:text-white"
                     >
                       Tickets ↗
                     </a>
@@ -672,7 +629,7 @@ export default async function EventPage({
                       }
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="border-2 border-white bg-black px-5 py-3 text-xs font-black uppercase tracking-[0.12em] text-white transition-colors hover:bg-white hover:text-black"
+                      className="inline-flex min-h-11 items-center justify-center border-2 border-white bg-black px-4 py-2.5 text-[10px] font-black uppercase tracking-[0.12em] text-white transition-colors hover:bg-white hover:text-black"
                     >
                       Official Event ↗
                     </a>
@@ -680,7 +637,7 @@ export default async function EventPage({
                 </div>
               )}
             </div>
-          </div>
+          </aside>
         </div>
       </section>
 
@@ -697,12 +654,12 @@ export default async function EventPage({
               : "border-b-2 border-black bg-white"
           }
         >
-          <div className="mx-auto max-w-6xl px-6 py-5 sm:px-10">
+          <div className="px-4 py-4 sm:px-6 lg:px-8">
             <p
               className={
                 isCancelled
-                  ? "font-black uppercase text-red-700"
-                  : "font-black uppercase"
+                  ? "text-sm font-black uppercase text-red-700"
+                  : "text-sm font-black uppercase"
               }
             >
               {isCancelled
@@ -720,52 +677,52 @@ export default async function EventPage({
       )}
 
       {/* ========================================
-          MAIN CONTENT
+          CONTENT
       ======================================== */}
 
-      <section className="mx-auto grid max-w-6xl lg:grid-cols-[1fr_320px]">
-        {/* ======================================
-            LEFT
-        ====================================== */}
-
-        <div className="border-black p-6 sm:p-10 lg:border-r-2">
-          {/* DESCRIPTION */}
-
+      <section className="grid lg:grid-cols-[minmax(0,1fr)_300px]">
+        <div className="border-black px-4 py-10 sm:px-6 sm:py-12 lg:border-r-2 lg:px-8">
           {event.description_short && (
-            <section>
-              <p className="text-xs font-black uppercase tracking-[0.2em]">
+            <section className="border-b-2 border-black pb-8">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-black/45">
                 About This Event
               </p>
 
-              <p className="mt-5 max-w-3xl whitespace-pre-line text-lg leading-8">
-                {
-                  event.description_short
-                }
+              <p className="mt-4 max-w-3xl whitespace-pre-line text-base leading-7 text-black/75 sm:text-lg sm:leading-8">
+                {event.description_short}
               </p>
             </section>
           )}
 
-          {/* ====================================
-              LINEUP
-          ==================================== */}
-
           <section
             className={
               event.description_short
-                ? "mt-14 border-t-2 border-black pt-8"
+                ? "pt-8"
                 : ""
             }
           >
-            <p className="text-xs font-black uppercase tracking-[0.2em]">
-              Live
-            </p>
+            <div className="flex items-end justify-between gap-5">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-black/45">
+                  Live
+                </p>
 
-            <h2 className="mt-2 text-3xl font-black uppercase">
-              Lineup
-            </h2>
+                <h2 className="mt-1 text-[clamp(2rem,4vw,3.25rem)] font-black uppercase leading-[0.92] tracking-[-0.04em]">
+                  Lineup
+                </h2>
+              </div>
+
+              <span className="text-[10px] font-black uppercase tracking-[0.12em] text-black/45">
+                {lineup.length}{" "}
+                {lineup.length ===
+                1
+                  ? "Artist"
+                  : "Artists"}
+              </span>
+            </div>
 
             {!lineup.length ? (
-              <p className="mt-5 text-sm text-black/60">
+              <p className="mt-6 text-sm text-black/60">
                 Lineup information has not been published yet.
               </p>
             ) : (
@@ -790,9 +747,9 @@ export default async function EventPage({
                           lineupArtist.id
                         }
                         href={`/artists/${lineupArtist.slug}`}
-                        className="group grid gap-3 py-5 sm:grid-cols-[50px_1fr_auto] sm:items-center"
+                        className="group grid gap-3 py-4 sm:grid-cols-[44px_1fr_auto] sm:items-center"
                       >
-                        <span className="text-sm font-black text-black/40">
+                        <span className="text-[10px] font-black text-black/35">
                           {String(
                             index + 1
                           ).padStart(
@@ -802,21 +759,19 @@ export default async function EventPage({
                         </span>
 
                         <div>
-                          <h3 className="text-2xl font-black uppercase group-hover:underline">
-                            {
-                              lineupArtist.name
-                            }
+                          <h3 className="text-xl font-black uppercase tracking-[-0.025em] group-hover:underline sm:text-2xl">
+                            {lineupArtist.name}
                           </h3>
 
-                          <p className="mt-1 text-[10px] font-black uppercase tracking-[0.14em] text-black/50">
+                          <p className="mt-1 text-[9px] font-black uppercase tracking-[0.13em] text-black/45">
                             {formatBillingRole(
                               row.billing_role
                             )}
                           </p>
                         </div>
 
-                        <span className="text-xs font-black uppercase">
-                          Explore Artist →
+                        <span className="text-[10px] font-black uppercase tracking-[0.12em]">
+                          Explore →
                         </span>
                       </Link>
                     );
@@ -828,23 +783,21 @@ export default async function EventPage({
         </div>
 
         {/* ======================================
-            EVENT DETAILS
+            DETAILS
         ====================================== */}
 
-        <aside className="border-t-2 border-black bg-white p-6 sm:p-8 lg:border-t-0">
-          <p className="text-xs font-black uppercase tracking-[0.2em]">
+        <aside className="border-t-2 border-black bg-white px-4 py-8 sm:px-6 lg:border-t-0 lg:px-8">
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-black/45">
             Event Details
           </p>
 
-          <dl className="mt-6 divide-y-2 divide-black border-y-2 border-black">
-            {/* DATE */}
-
-            <div className="py-4">
-              <dt className="text-[10px] font-black uppercase tracking-[0.18em] text-black/55">
+          <dl className="mt-5 divide-y-2 divide-black border-y-2 border-black">
+            <div className="py-3">
+              <dt className="text-[9px] font-black uppercase tracking-[0.14em] text-black/45">
                 Date
               </dt>
 
-              <dd className="mt-1 font-black">
+              <dd className="mt-1 text-sm font-black">
                 {formatDate(
                   event.start_at,
                   timeZone
@@ -852,50 +805,40 @@ export default async function EventPage({
               </dd>
             </div>
 
-            {/* START */}
-
             {startTime && (
-              <div className="py-4">
-                <dt className="text-[10px] font-black uppercase tracking-[0.18em] text-black/55">
+              <div className="py-3">
+                <dt className="text-[9px] font-black uppercase tracking-[0.14em] text-black/45">
                   Start
                 </dt>
 
-                <dd className="mt-1 font-black uppercase">
-                  {
-                    startTime
-                  }
+                <dd className="mt-1 text-sm font-black uppercase">
+                  {startTime}
                 </dd>
               </div>
             )}
 
-            {/* DOORS */}
-
             {doorsTime && (
-              <div className="py-4">
-                <dt className="text-[10px] font-black uppercase tracking-[0.18em] text-black/55">
+              <div className="py-3">
+                <dt className="text-[9px] font-black uppercase tracking-[0.14em] text-black/45">
                   Doors
                 </dt>
 
-                <dd className="mt-1 font-black uppercase">
-                  {
-                    doorsTime
-                  }
+                <dd className="mt-1 text-sm font-black uppercase">
+                  {doorsTime}
                 </dd>
               </div>
             )}
 
-            {/* STATUS */}
-
-            <div className="py-4">
-              <dt className="text-[10px] font-black uppercase tracking-[0.18em] text-black/55">
+            <div className="py-3">
+              <dt className="text-[9px] font-black uppercase tracking-[0.14em] text-black/45">
                 Status
               </dt>
 
               <dd
                 className={
                   isCancelled
-                    ? "mt-1 font-black uppercase text-red-700"
-                    : "mt-1 font-black uppercase"
+                    ? "mt-1 text-sm font-black uppercase text-red-700"
+                    : "mt-1 text-sm font-black uppercase"
                 }
               >
                 {formatStatus(
@@ -904,67 +847,48 @@ export default async function EventPage({
               </dd>
             </div>
 
-            {/* EVENT TYPE */}
-
-            <div className="py-4">
-              <dt className="text-[10px] font-black uppercase tracking-[0.18em] text-black/55">
+            <div className="py-3">
+              <dt className="text-[9px] font-black uppercase tracking-[0.14em] text-black/45">
                 Type
               </dt>
 
-              <dd className="mt-1 font-black uppercase">
+              <dd className="mt-1 text-sm font-black uppercase">
                 {formatEventType(
                   event.event_type
                 )}
               </dd>
             </div>
 
-            {/* ADMISSION */}
-
-            <div className="py-4">
-              <dt className="text-[10px] font-black uppercase tracking-[0.18em] text-black/55">
+            <div className="py-3">
+              <dt className="text-[9px] font-black uppercase tracking-[0.14em] text-black/45">
                 Admission
               </dt>
 
-              <dd className="mt-1 font-black uppercase">
+              <dd className="mt-1 text-sm font-black uppercase">
                 {event.all_ages
                   ? "All Ages"
                   : "Check Venue"}
               </dd>
             </div>
 
-            {/* ====================================
-                VENUE
-            ==================================== */}
-
             {venue && (
-              <div className="py-4">
-                <dt className="text-[10px] font-black uppercase tracking-[0.18em] text-black/55">
+              <div className="py-3">
+                <dt className="text-[9px] font-black uppercase tracking-[0.14em] text-black/45">
                   Venue
                 </dt>
 
                 <dd className="mt-1">
                   <Link
                     href={`/venues/${venue.slug}`}
-                    className="group inline-flex items-center gap-2 font-black"
+                    className="break-words text-sm font-black hover:underline"
                   >
-                    <span className="group-hover:underline">
-                      {
-                        venue.name
-                      }
-                    </span>
-
-                    <span
-                      className="text-xs"
-                      aria-hidden="true"
-                    >
-                      →
-                    </span>
+                    {venue.name} →
                   </Link>
                 </dd>
 
                 {addressLines.length >
                   0 && (
-                  <dd className="mt-3 text-sm leading-6 text-black/60">
+                  <dd className="mt-2 text-sm leading-6 text-black/55">
                     {addressLines.map(
                       (
                         line
@@ -975,9 +899,7 @@ export default async function EventPage({
                           }
                           className="block"
                         >
-                          {
-                            line
-                          }
+                          {line}
                         </span>
                       )
                     )}
@@ -985,14 +907,14 @@ export default async function EventPage({
                 )}
 
                 {venue.website_url && (
-                  <dd className="mt-4">
+                  <dd className="mt-3">
                     <a
                       href={
                         venue.website_url
                       }
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-[10px] font-black uppercase tracking-[0.1em] underline decoration-2 underline-offset-4 hover:no-underline"
+                      className="text-[9px] font-black uppercase tracking-[0.12em] hover:underline"
                     >
                       Venue Website ↗
                     </a>
@@ -1001,71 +923,19 @@ export default async function EventPage({
               </div>
             )}
 
-            {/* LOCATION WITHOUT VENUE */}
-
             {!venue &&
               locationLabel && (
-                <div className="py-4">
-                  <dt className="text-[10px] font-black uppercase tracking-[0.18em] text-black/55">
+                <div className="py-3">
+                  <dt className="text-[9px] font-black uppercase tracking-[0.14em] text-black/45">
                     Location
                   </dt>
 
-                  <dd className="mt-1 font-black">
-                    {
-                      locationLabel
-                    }
+                  <dd className="mt-1 text-sm font-black">
+                    {locationLabel}
                   </dd>
                 </div>
               )}
           </dl>
-
-          {/* ====================================
-              ACTIONS
-          ==================================== */}
-
-          {(event.ticket_url ||
-            event.event_url) && (
-            <div className="mt-6 space-y-3">
-              {event.ticket_url &&
-                !isCancelled && (
-                <a
-                  href={
-                    event.ticket_url
-                  }
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex w-full items-center justify-between border-2 border-black bg-black px-4 py-3 text-xs font-black uppercase text-white transition-colors hover:bg-white hover:text-black"
-                >
-                  <span>
-                    Tickets
-                  </span>
-
-                  <span>
-                    ↗
-                  </span>
-                </a>
-              )}
-
-              {event.event_url && (
-                <a
-                  href={
-                    event.event_url
-                  }
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex w-full items-center justify-between border-2 border-black bg-white px-4 py-3 text-xs font-black uppercase transition-colors hover:bg-black hover:text-white"
-                >
-                  <span>
-                    Official Event
-                  </span>
-
-                  <span>
-                    ↗
-                  </span>
-                </a>
-              )}
-            </div>
-          )}
         </aside>
       </section>
 
@@ -1073,72 +943,31 @@ export default async function EventPage({
           KEEP EXPLORING
       ======================================== */}
 
-      <section className="border-t-2 border-black bg-[#f3efe4]">
-        <div className="mx-auto max-w-6xl px-6 py-12 sm:px-10 sm:py-16">
-          <p className="text-xs font-black uppercase tracking-[0.2em]">
-            Keep Exploring
-          </p>
-
-          <h2 className="mt-2 text-4xl font-black uppercase sm:text-5xl">
-            Follow the Lineup
-          </h2>
-
-          {lineup.length >
-          0 ? (
-            <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {lineup.map(
-                (
-                  row
-                ) => {
-                  const lineupArtist =
-                    row.artist;
-
-                  if (
-                    !lineupArtist
-                  ) {
-                    return null;
-                  }
-
-                  return (
-                    <Link
-                      key={
-                        lineupArtist.id
-                      }
-                      href={`/artists/${lineupArtist.slug}`}
-                      className="group border-2 border-black bg-white p-6 transition-colors hover:bg-black hover:text-white"
-                    >
-                      <p className="text-[10px] font-black uppercase tracking-[0.15em] opacity-55">
-                        {formatBillingRole(
-                          row.billing_role
-                        )}
-                      </p>
-
-                      <h3 className="mt-3 text-2xl font-black uppercase leading-tight">
-                        {
-                          lineupArtist.name
-                        }
-                      </h3>
-
-                      <p className="mt-8 text-[10px] font-black uppercase tracking-[0.14em] group-hover:underline">
-                        Explore Artist →
-                      </p>
-                    </Link>
-                  );
-                }
-              )}
-            </div>
-          ) : (
-            <p className="mt-6 text-sm text-black/60">
-              Artist information has not been published for this event.
+      <section className="border-t-2 border-black bg-black text-white">
+        <div className="flex flex-col gap-8 px-4 py-10 sm:px-6 sm:py-12 lg:flex-row lg:items-end lg:justify-between lg:px-8">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/45">
+              Keep Exploring
             </p>
-          )}
 
-          <div className="mt-8 border-t-2 border-black pt-6">
+            <h2 className="mt-2 text-3xl font-black uppercase tracking-[-0.035em] sm:text-4xl">
+              Follow the Lineup
+            </h2>
+          </div>
+
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Link
+              href="/events"
+              className="inline-flex min-h-11 items-center justify-center border-2 border-white bg-white px-4 py-2.5 text-[10px] font-black uppercase tracking-[0.12em] text-black transition-colors hover:bg-black hover:text-white"
+            >
+              All Events →
+            </Link>
+
             <Link
               href="/"
-              className="inline-flex border-2 border-black bg-white px-5 py-3 text-xs font-black uppercase tracking-[0.12em] transition-colors hover:bg-black hover:text-white"
+              className="inline-flex min-h-11 items-center justify-center border-2 border-white bg-black px-4 py-2.5 text-[10px] font-black uppercase tracking-[0.12em] text-white transition-colors hover:bg-white hover:text-black"
             >
-              ← Return to Atlas
+              Explore Map →
             </Link>
           </div>
         </div>

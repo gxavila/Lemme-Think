@@ -1704,23 +1704,23 @@ export default function AtlasExplorer({
       ====================================== */}
 
       <div className="sticky top-[64px] z-40 border-y-2 border-black bg-white shadow-[0_1px_0_rgba(0,0,0,0.08)]">
-        <div className="flex flex-col gap-3 px-4 py-3 sm:px-6 lg:flex-row lg:items-end lg:justify-between lg:px-8">
+        <div className="flex flex-col gap-2 px-3 py-2.5 sm:px-6 sm:py-3 lg:flex-row lg:items-end lg:justify-between lg:px-8">
           <div className="min-w-0 max-w-3xl">
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-black/50">
               Explore the Atlas
             </p>
 
-            <h2 className="mt-1 text-xl font-black uppercase tracking-[-0.03em] sm:text-2xl">
+            <h2 className="mt-0.5 text-lg font-black uppercase tracking-[-0.03em] sm:mt-1 sm:text-2xl">
               Find Music by Geography
             </h2>
 
-            <p className="mt-2 max-w-2xl text-sm font-medium leading-6 text-black/65">
+            <p className="mt-2 hidden max-w-2xl text-sm font-medium leading-6 text-black/65 sm:block">
               Discover artists, scenes, and events through
               the places where underground music is happening.
             </p>
           </div>
 
-          <div className="flex items-center justify-between gap-3 sm:hidden">
+          <div className="flex items-center justify-between gap-2 sm:hidden">
             <div className="text-[10px] font-black uppercase tracking-[0.14em] text-black/50">
               <span aria-live="polite">
                 {resultCount}{" "}
@@ -1760,7 +1760,7 @@ export default function AtlasExplorer({
                   null
                 );
               }}
-              className="min-h-10 border-2 border-black bg-white px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] transition-colors hover:bg-black hover:text-white"
+              className="min-h-9 shrink-0 border-2 border-black bg-white px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.1em] transition-colors hover:bg-black hover:text-white"
               aria-expanded={
                 !mobileFiltersCollapsed
               }
@@ -1772,7 +1772,7 @@ export default function AtlasExplorer({
           </div>
 
           <div className="w-full sm:w-auto">
-            <div className="grid grid-cols-3">
+            <div className="grid grid-cols-3 text-center">
               <p className="col-span-2 mb-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-black/45">
                 View on Map
               </p>
@@ -1793,8 +1793,8 @@ export default function AtlasExplorer({
                 }
                 className={
                   isArtistMode
-                    ? "h-10 bg-black px-4 text-[10px] font-black uppercase tracking-[0.14em] text-white sm:px-5 sm:text-xs"
-                    : "h-10 bg-white px-4 text-[10px] font-black uppercase tracking-[0.14em] transition-colors hover:bg-black hover:text-white sm:px-5 sm:text-xs"
+                    ? "h-9 bg-black px-2 text-[9px] font-black uppercase tracking-[0.1em] text-white sm:h-10 sm:px-5 sm:text-xs sm:tracking-[0.14em]"
+                    : "h-9 bg-white px-2 text-[9px] font-black uppercase tracking-[0.1em] transition-colors hover:bg-black hover:text-white sm:h-10 sm:px-5 sm:text-xs sm:tracking-[0.14em]"
                 }
               >
                 Artists
@@ -1810,8 +1810,8 @@ export default function AtlasExplorer({
                 }
                 className={
                   !isArtistMode
-                    ? "h-10 border-l-2 border-black bg-black px-4 text-[10px] font-black uppercase tracking-[0.14em] text-white sm:px-5 sm:text-xs"
-                    : "h-10 border-l-2 border-black bg-white px-4 text-[10px] font-black uppercase tracking-[0.14em] transition-colors hover:bg-black hover:text-white sm:px-5 sm:text-xs"
+                    ? "h-9 border-l-2 border-black bg-black px-2 text-[9px] font-black uppercase tracking-[0.1em] text-white sm:h-10 sm:px-5 sm:text-xs sm:tracking-[0.14em]"
+                    : "h-9 border-l-2 border-black bg-white px-2 text-[9px] font-black uppercase tracking-[0.1em] transition-colors hover:bg-black hover:text-white sm:h-10 sm:px-5 sm:text-xs sm:tracking-[0.14em]"
                 }
               >
                 Events
@@ -1819,7 +1819,7 @@ export default function AtlasExplorer({
 
               <Link
                 href="/scenes"
-                className="flex h-10 items-center justify-center border-l-2 border-black bg-white px-4 text-center text-[10px] font-black uppercase tracking-[0.14em] transition-colors hover:bg-black hover:text-white sm:px-5 sm:text-xs"
+                className="flex h-9 items-center justify-center border-l-2 border-black bg-white px-2 text-center text-[9px] font-black uppercase tracking-[0.1em] transition-colors hover:bg-black hover:text-white sm:h-10 sm:px-5 sm:text-xs sm:tracking-[0.14em]"
               >
                 Scenes →
               </Link>
@@ -1839,8 +1839,8 @@ export default function AtlasExplorer({
           }
         >
         <div className="border-t-2 border-black bg-white">
-          <div className="overflow-x-auto">
-            <div className="flex min-w-max px-2 sm:px-4 lg:px-6">
+          <div className="overflow-x-auto overscroll-x-contain">
+            <div className="flex min-w-max snap-x snap-mandatory px-1 sm:px-4 lg:px-6">
               {(isArtistMode
                 ? [
                     {
@@ -1956,8 +1956,8 @@ export default function AtlasExplorer({
                       }
                       className={
                         active
-                          ? "min-h-10 border-b-[3px] border-black bg-[#f3efe4] px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-black sm:px-4"
-                          : "min-h-10 border-b-[3px] border-transparent px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-black/60 transition-colors hover:border-black hover:text-black sm:px-4"
+                          ? "min-h-10 snap-start border-b-[3px] border-black bg-[#f3efe4] px-3 py-2 text-[9px] font-black uppercase tracking-[0.11em] text-black sm:px-4 sm:text-[10px] sm:tracking-[0.14em]"
+                          : "min-h-10 snap-start border-b-[3px] border-transparent px-3 py-2 text-[9px] font-black uppercase tracking-[0.11em] text-black/60 transition-colors hover:border-black hover:text-black sm:px-4 sm:text-[10px] sm:tracking-[0.14em]"
                       }
                     >
                       {
@@ -2017,7 +2017,7 @@ export default function AtlasExplorer({
 
         {activeFilterTab && (
           <div className="border-t border-black bg-[#f3efe4]">
-            <div className="px-4 py-2.5 sm:px-6 lg:px-8">
+            <div className="px-3 py-2.5 sm:px-6 lg:px-8">
               {/* ARTIST LOCATION */}
 
               {isArtistMode &&
@@ -2439,7 +2439,7 @@ export default function AtlasExplorer({
                         </p>
 
                         <div className="overflow-x-auto">
-                          <div className="flex w-max flex-wrap gap-2 lg:w-auto">
+                          <div className="flex w-max flex-nowrap gap-2 lg:w-auto lg:flex-wrap">
                             {featuredLocations.map(
                               (
                                 location
@@ -3102,7 +3102,7 @@ export default function AtlasExplorer({
           MAP FOOTER
       ====================================== */}
 
-      <div className="grid border-y-2 border-black bg-white sm:grid-cols-2">
+      <div className="hidden border-y-2 border-black bg-white sm:grid sm:grid-cols-2">
         <div className="border-black p-4 sm:border-r-2 sm:px-6">
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-black/50">
             Discover
