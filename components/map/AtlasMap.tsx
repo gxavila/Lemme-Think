@@ -91,6 +91,8 @@ type MapArtist = {
 
   bio_short?: string | null;
 
+  image_url?: string | null;
+
   genres?:
     | ArtistGenre[]
     | string
@@ -1060,6 +1062,10 @@ function buildArtistGeoJson(
                 artist.bio_short ??
                 "",
 
+              image_url:
+                artist.image_url ??
+                "",
+
               genres:
                 JSON.stringify(
                   normalizeGenres(
@@ -1372,12 +1378,45 @@ function buildArtistPopup(
         )
       : "";
 
+  const imageUrl =
+    properties.image_url
+      ? escapeHtml(
+          properties.image_url
+        )
+      : "";
+
   return `
     <div style="
-      min-width:230px;
-      max-width:290px;
+      min-width:250px;
+      max-width:300px;
       font-family:Arial,Helvetica,sans-serif;
     ">
+      ${
+        imageUrl
+          ? `
+            <div style="
+              width:100%;
+              height:118px;
+              margin-bottom:12px;
+              overflow:hidden;
+              border:1px solid #111;
+              background:#111;
+            ">
+              <img
+                src="${imageUrl}"
+                alt="${name}"
+                style="
+                  display:block;
+                  width:100%;
+                  height:100%;
+                  object-fit:cover;
+                "
+              />
+            </div>
+          `
+          : ""
+      }
+
       ${
         location
           ? `
@@ -1440,10 +1479,14 @@ function buildArtistPopup(
         bio
           ? `
             <div style="
+              display:-webkit-box;
               margin-top:11px;
+              overflow:hidden;
               font-size:12px;
               line-height:1.5;
               color:#555;
+              -webkit-box-orient:vertical;
+              -webkit-line-clamp:3;
             ">
               ${bio}
             </div>
@@ -2425,11 +2468,170 @@ export default function AtlasMap({
       return;
     }
 
+    const artists =
+      normalizeArtists(
+        data
+      );
+
+    const artistIds =
+      artists.map(
+        (
+          artist
+        ) =>
+          artist.id
+      );
+
+    if (
+      artistIds.length
+    ) {
+      const {
+        data:
+          artistImageRows,
+        error:
+          artistImagesError,
+      } =
+        await supabaseRef.current
+          .from(
+            "artist_images"
+          )
+          .select(
+            `
+            artist_id,
+            storage_path,
+            image_type,
+            sort_order
+            `
+          )
+          .in(
+            "artist_id",
+            artistIds
+          )
+          .order(
+            "sort_order",
+            {
+              ascending:
+                true,
+            }
+          );
+
+      if (
+        artistImagesError
+      ) {
+        console.error(
+          "Map artist image query failed:",
+          artistImagesError
+        );
+      } else if (
+        artistImageRows
+      ) {
+        const imageByArtist =
+          new Map<
+            string,
+            {
+              storage_path:
+                string;
+              image_type:
+                string | null;
+              sort_order:
+                number | null;
+            }
+          >();
+
+        for (
+          const row of
+          artistImageRows
+        ) {
+          const existing =
+            imageByArtist.get(
+              row.artist_id
+            );
+
+          const currentRank =
+            row.image_type ===
+            "hero"
+              ? 0
+              : row.image_type ===
+                  "profile"
+                ? 1
+                : 2;
+
+          const existingRank =
+            existing?.image_type ===
+            "hero"
+              ? 0
+              : existing?.image_type ===
+                  "profile"
+                ? 1
+                : 2;
+
+          if (
+            !existing ||
+            currentRank <
+              existingRank ||
+            (
+              currentRank ===
+                existingRank &&
+              (
+                row.sort_order ??
+                0
+              ) <
+                (
+                  existing.sort_order ??
+                  0
+                )
+            )
+          ) {
+            imageByArtist.set(
+              row.artist_id,
+              {
+                storage_path:
+                  row.storage_path,
+                image_type:
+                  row.image_type,
+                sort_order:
+                  row.sort_order,
+              }
+            );
+          }
+        }
+
+        for (
+          const artist of
+          artists
+        ) {
+          const image =
+            imageByArtist.get(
+              artist.id
+            );
+
+          if (
+            image?.storage_path
+          ) {
+            artist.image_url =
+              supabaseRef.current.storage
+                .from(
+                  "artist-images"
+                )
+                .getPublicUrl(
+                  image.storage_path
+                ).data.publicUrl;
+          }
+        }
+      }
+    }
+
+    if (
+      requestId !==
+        requestSequenceRef.current ||
+      modeRef.current !==
+        requestedMode
+    ) {
+      return;
+    }
+
     const artistGeoJson =
       buildArtistGeoJson(
-        normalizeArtists(
-          data
-        )
+        artists
       );
 
     source.setData(
@@ -3649,6 +3851,155 @@ export default function AtlasMap({
         );
 
         // ======================================
+        // ARTIST HOVER PREVIEW
+        // ======================================
+
+        let hoverOpenTimer:
+          ReturnType<
+            typeof setTimeout
+          > | null =
+          null;
+
+        let hoverCloseTimer:
+          ReturnType<
+            typeof setTimeout
+          > | null =
+          null;
+
+        const canHover =
+          () =>
+            window.matchMedia(
+              "(hover: hover) and (pointer: fine)"
+            ).matches;
+
+        const clearHoverOpenTimer =
+          () => {
+            if (
+              hoverOpenTimer
+            ) {
+              clearTimeout(
+                hoverOpenTimer
+              );
+
+              hoverOpenTimer =
+                null;
+            }
+          };
+
+        const clearHoverCloseTimer =
+          () => {
+            if (
+              hoverCloseTimer
+            ) {
+              clearTimeout(
+                hoverCloseTimer
+              );
+
+              hoverCloseTimer =
+                null;
+            }
+          };
+
+        const scheduleHoverClose =
+          () => {
+            clearHoverCloseTimer();
+
+            hoverCloseTimer =
+              setTimeout(
+                () => {
+                  popupRef.current?.remove();
+                },
+                220
+              );
+          };
+
+        const showArtistHoverPopup =
+          (
+            feature:
+              RenderedPointFeature
+          ) => {
+            if (
+              feature.geometry.type !==
+                "Point" ||
+              !feature.geometry.coordinates
+            ) {
+              return;
+            }
+
+            const longitude =
+              Number(
+                feature.geometry
+                  .coordinates[0]
+              );
+
+            const latitude =
+              Number(
+                feature.geometry
+                  .coordinates[1]
+              );
+
+            if (
+              !isValidLongitude(
+                longitude
+              ) ||
+              !isValidLatitude(
+                latitude
+              )
+            ) {
+              return;
+            }
+
+            const popupHtml =
+              buildArtistPopup(
+                feature.properties ??
+                  null
+              );
+
+            popupRef.current?.remove();
+
+            const popup =
+              new mapboxgl.Popup({
+                offset:
+                  12,
+
+                closeButton:
+                  false,
+
+                closeOnClick:
+                  false,
+
+                maxWidth:
+                  "320px",
+              })
+                .setLngLat([
+                  longitude,
+                  latitude,
+                ])
+                .setHTML(
+                  popupHtml
+                )
+                .addTo(
+                  activeMap
+                );
+
+            popupRef.current =
+              popup;
+
+            const popupElement =
+              popup.getElement();
+
+            popupElement.addEventListener(
+              "mouseenter",
+              clearHoverCloseTimer
+            );
+
+            popupElement.addEventListener(
+              "mouseleave",
+              scheduleHoverClose
+            );
+          };
+
+        // ======================================
         // POINT CLICK
         // ======================================
 
@@ -3707,6 +4058,30 @@ export default function AtlasMap({
                   ?.kind ??
                   "artist"
               );
+
+            if (
+              kind ===
+                "artist" &&
+              canHover()
+            ) {
+              const slug =
+                String(
+                  feature.properties
+                    ?.slug ??
+                    ""
+                );
+
+              if (
+                slug
+              ) {
+                window.location.href =
+                  `/artists/${encodeURIComponent(
+                    slug
+                  )}`;
+
+                return;
+              }
+            }
 
             const popupHtml =
               kind ===
@@ -3774,9 +4149,49 @@ export default function AtlasMap({
         activeMap.on(
           "mouseenter",
           POINT_LAYER_ID,
-          () => {
+          (
+            event
+          ) => {
             activeMap.getCanvas().style.cursor =
               "pointer";
+
+            if (
+              !canHover() ||
+              modeRef.current !==
+                "artists"
+            ) {
+              return;
+            }
+
+            const feature =
+              event.features?.[0] as unknown as
+                | RenderedPointFeature
+                | undefined;
+
+            if (
+              !feature ||
+              String(
+                feature.properties
+                  ?.kind ??
+                  ""
+              ) !==
+                "artist"
+            ) {
+              return;
+            }
+
+            clearHoverCloseTimer();
+            clearHoverOpenTimer();
+
+            hoverOpenTimer =
+              setTimeout(
+                () => {
+                  showArtistHoverPopup(
+                    feature
+                  );
+                },
+                180
+              );
           }
         );
 
@@ -3786,6 +4201,17 @@ export default function AtlasMap({
           () => {
             activeMap.getCanvas().style.cursor =
               "";
+
+            if (
+              !canHover() ||
+              modeRef.current !==
+                "artists"
+            ) {
+              return;
+            }
+
+            clearHoverOpenTimer();
+            scheduleHoverClose();
           }
         );
       }
