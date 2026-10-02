@@ -3986,17 +3986,17 @@ export default function AtlasMap({
               popup;
 
             const popupElement =
-              popup.getElement();
+  popup.getElement();
 
-            popupElement.addEventListener(
-              "mouseenter",
-              clearHoverCloseTimer
-            );
+popupElement?.addEventListener(
+  "mouseenter",
+  clearHoverCloseTimer
+);
 
-            popupElement.addEventListener(
-              "mouseleave",
-              scheduleHoverClose
-            );
+popupElement?.addEventListener(
+  "mouseleave",
+  scheduleHoverClose
+);
           };
 
         // ======================================
