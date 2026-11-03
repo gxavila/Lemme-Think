@@ -3311,7 +3311,7 @@ export default function AtlasMap({
                   },
 
                   cluster:
-                    true,
+                    false,
 
                   clusterRadius:
                     50,
@@ -3986,9 +3986,9 @@ export default function AtlasMap({
               popup;
 
             const popupElement =
-  popup.getElement();
+              popup.getElement();
 
-popupElement?.addEventListener(
+            popupElement?.addEventListener(
   "mouseenter",
   clearHoverCloseTimer
 );
