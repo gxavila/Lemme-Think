@@ -726,12 +726,6 @@ export default async function ArtistPage({
   // UPCOMING EVENTS
   // ============================================
 
-  /*
-   * Load the artist's event IDs first, then query
-   * events directly. This avoids filtering through
-   * a deeply embedded event relation and makes the
-   * upcoming-show lookup deterministic.
-   */
   const {
     data: eventArtistLinks,
     error: eventLinksError,
@@ -1055,7 +1049,7 @@ export default async function ArtistPage({
             </div>
 
             <div className="py-8 lg:py-10">
-              <h1 className="max-w-5xl break-words break-words text-[clamp(2.5rem,14vw,6rem)] font-black uppercase leading-[0.86] tracking-[-0.055em]">
+              <h1 className="max-w-5xl break-words text-[clamp(2.5rem,14vw,6rem)] font-black uppercase leading-[0.86] tracking-[-0.055em]">
                 {artist.name}
               </h1>
 
@@ -1225,7 +1219,7 @@ export default async function ArtistPage({
             </div>
           </div>
 
-          <div className="mt-7 grid gap-5 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+          <div className="mt-7 max-w-xl">
             <div className="border-2 border-black bg-[#f3efe4] p-4 sm:p-6">
               <p className="text-[9px] font-black uppercase tracking-[0.16em] text-black/45">
                 Featured Release
@@ -1299,103 +1293,6 @@ export default async function ArtistPage({
                 </p>
               )}
             </div>
-
-            <div className="border-2 border-black bg-white p-4 sm:p-6">
-              <p className="text-[9px] font-black uppercase tracking-[0.16em] text-black/45">
-                Recommended Tracks
-              </p>
-
-              {!recommendedTracks.length ? (
-                <p className="mt-4 text-sm text-black/55">
-                  Recommended tracks are coming soon.
-                </p>
-              ) : (
-                <div className="mt-4 divide-y-2 divide-black border-y-2 border-black">
-                  {recommendedTracks.map(
-                    (
-                      track,
-                      index
-                    ) => (
-                      <div
-                        key={
-                          track.id
-                        }
-                        className="grid gap-3 py-4 md:grid-cols-[44px_minmax(0,1fr)_auto] sm:items-center"
-                      >
-                        <span className="text-[10px] font-black text-black/35">
-                          {String(
-                            index + 1
-                          ).padStart(
-                            2,
-                            "0"
-                          )}
-                        </span>
-
-                        <div>
-                          <h3 className="text-lg font-black uppercase tracking-[-0.02em]">
-                            {track.title}
-                          </h3>
-
-                          <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[9px] font-black uppercase tracking-[0.1em] text-black/45">
-                            {track.recommendation_type && (
-                              <span>
-                                {formatRecommendation(
-                                  track.recommendation_type
-                                )}
-                              </span>
-                            )}
-
-                            {track.duration_seconds !==
-                              null && (
-                              <span>
-                                {formatDuration(
-                                  track.duration_seconds
-                                )}
-                              </span>
-                            )}
-
-                            {track.release?.title && (
-                              <span>
-                                {track.release.title}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        {track.links &&
-                          track.links.length >
-                            0 && (
-                            <div className="flex flex-wrap gap-2 sm:justify-end">
-                              {track.links.map(
-                                (
-                                  link
-                                ) => (
-                                  <a
-                                    key={
-                                      `${link.platform}-${link.url}`
-                                    }
-                                    href={
-                                      link.url
-                                    }
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-[9px] font-black uppercase tracking-[0.1em] hover:underline"
-                                  >
-                                    {formatPlatform(
-                                      link.platform
-                                    )}{" "}
-                                    ↗
-                                  </a>
-                                )
-                              )}
-                            </div>
-                          )}
-                      </div>
-                    )
-                  )}
-                </div>
-              )}
-            </div>
           </div>
 
           {releases.length >
@@ -1459,154 +1356,6 @@ export default async function ArtistPage({
                   )
                 )}
               </div>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* ========================================
-          UPCOMING SHOWS
-      ======================================== */}
-
-      <section className="border-b-2 border-black">
-        <div className="px-4 py-7 sm:px-6 sm:py-9 lg:px-8 lg:py-12">
-          <div className="flex items-end justify-between gap-5">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-black/45">
-                Live
-              </p>
-
-              <h2 className="mt-1 text-[clamp(2rem,4vw,3.25rem)] font-black uppercase leading-[0.92] tracking-[-0.04em]">
-                Upcoming Shows
-              </h2>
-            </div>
-
-            <span className="text-[10px] font-black uppercase tracking-[0.12em] text-black/45">
-              {upcomingEvents.length} Total
-            </span>
-          </div>
-
-          {!upcomingEvents.length ? (
-            <p className="mt-6 text-sm text-black/60">
-              No upcoming published shows are currently listed.
-            </p>
-          ) : (
-            <div className="mt-6 grid gap-5 xl:grid-cols-2">
-              {upcomingEvents.map(
-                (
-                  event
-                ) => {
-                  const venue =
-                    firstRelation<EventVenue>(
-                      event.venue
-                    );
-
-                  const venueLocation =
-                    firstRelation<EventLocation>(
-                      venue?.location
-                    );
-
-                  const eventLocation =
-                    firstRelation<EventLocation>(
-                      event.location
-                    );
-
-                  const displayLocation =
-                    venueLocation ??
-                    eventLocation;
-
-                  const timezone =
-                    event.timezone ??
-                    "America/Los_Angeles";
-
-                  return (
-                    <article
-                      key={
-                        event.id
-                      }
-                      className="overflow-hidden border-2 border-black bg-white"
-                    >
-                      <div className="grid md:grid-cols-[112px_minmax(0,1fr)]">
-                        <div className="flex min-h-[124px] flex-row items-center justify-between border-b-2 border-black bg-black p-4 text-white sm:flex-col sm:items-start sm:justify-between sm:border-b-0 sm:border-r-2">
-                          <div>
-                            <p className="text-[9px] font-black uppercase tracking-[0.15em] text-white/55">
-                              {formatEventDate(
-                                event.start_at,
-                                timezone
-                              )}
-                            </p>
-
-                            <p className="mt-2 text-2xl font-black uppercase tracking-[-0.04em]">
-                              {formatEventTime(
-                                event.start_at,
-                                timezone
-                              )}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="p-4 sm:p-6">
-                          <Link
-                            href={`/events/${event.slug}`}
-                            className="inline-block"
-                          >
-                            <h3 className="text-2xl font-black uppercase leading-[0.95] tracking-[-0.035em] hover:underline">
-                              {event.title}
-                            </h3>
-                          </Link>
-
-                          {venue && (
-                            <Link
-                              href={`/venues/${venue.slug}`}
-                              className="mt-3 block text-[10px] font-black uppercase tracking-[0.1em] hover:underline"
-                            >
-                              {venue.name} →
-                            </Link>
-                          )}
-
-                          {displayLocation && (
-                            <p className="mt-1 text-[10px] font-black uppercase tracking-[0.1em] text-black/45">
-                              {[
-                                displayLocation.city ??
-                                  displayLocation.name,
-                                displayLocation.region,
-                              ]
-                                .filter(
-                                  Boolean
-                                )
-                                .join(
-                                  ", "
-                                )}
-                            </p>
-                          )}
-
-                          <div className="mt-5 flex flex-wrap gap-2 border-t-2 border-black pt-4">
-                            <Link
-                              href={`/events/${event.slug}`}
-                              className="inline-flex min-h-10 items-center justify-center border-2 border-black bg-white min-h-9 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.1em] transition-colors hover:bg-black hover:text-white"
-                            >
-                              View Event →
-                            </Link>
-
-                            {event.ticket_url && (
-                              <a
-                                href={
-                                  event.ticket_url
-                                }
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex min-h-10 items-center justify-center border-2 border-black bg-black min-h-9 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.1em] text-white transition-colors hover:bg-white hover:text-black"
-                              >
-                                Tickets ↗
-                              </a>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </article>
-                  );
-                }
-              )}
             </div>
           )}
         </div>
