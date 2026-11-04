@@ -52,31 +52,6 @@ type Release = {
   links?: ReleaseLink[];
 };
 
-type TrackLink = {
-  platform: string;
-  url: string;
-  label: string | null;
-};
-
-type RecommendedTrack = {
-  id: string;
-  title: string;
-  featured: boolean;
-  recommendation_type: string | null;
-  track_number: number | null;
-  duration_seconds: number | null;
-
-  release?: {
-    id: string;
-    title: string;
-    release_type: string;
-    release_date?: string | null;
-    cover_image_path?: string | null;
-  } | null;
-
-  links?: TrackLink[];
-};
-
 type AssociationGenre = {
   name: string;
   slug: string;
@@ -100,91 +75,33 @@ type AssociatedArtist = {
   profile_image: string | null;
 };
 
-type EventLocation = {
-  id?: string;
-  name: string | null;
-  city: string | null;
-  region: string | null;
-  country: string | null;
-};
-
-type EventVenue = {
-  id: string;
-  name: string;
-  slug: string;
-  address_line_1: string | null;
-  address_line_2: string | null;
-  postal_code: string | null;
-  website_url: string | null;
-
-  location:
-    | EventLocation
-    | EventLocation[]
-    | null;
-};
-
-type EventLineupArtist = {
-  id: string;
-  name: string;
-  slug: string;
-  published: boolean;
-};
-
-type EventLineupRow = {
-  billing_role: string;
-  billing_order: number;
-
-  artist:
-    | EventLineupArtist
-    | EventLineupArtist[]
-    | null;
-};
-
-type UpcomingEvent = {
-  id: string;
-  title: string;
-  slug: string;
-  event_type: string;
-  status: string;
-  start_at: string;
-  doors_at: string | null;
-  end_at: string | null;
-  timezone: string | null;
-  ticket_url: string | null;
-  event_url: string | null;
-  description_short: string | null;
-  all_ages: boolean | null;
-  featured: boolean;
-  published: boolean;
-
-  venue:
-    | EventVenue
-    | EventVenue[]
-    | null;
-
-  location:
-    | EventLocation
-    | EventLocation[]
-    | null;
-
-  lineup:
-    | EventLineupRow[]
-    | null;
-};
-
-type EventArtistLink = {
-  event_id: string;
-};
-
-function formatPlatform(
-  platform: string
-) {
+function formatPlatform(platform: string) {
   return platform
     .replaceAll("_", " ")
-    .replace(
-      /\b\w/g,
-      (letter) =>
-        letter.toUpperCase()
+    .replace(/\b\w/g, (letter) =>
+      letter.toUpperCase()
+    );
+}
+
+function formatReleaseType(value: string) {
+  return value
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (letter) =>
+      letter.toUpperCase()
+    );
+}
+
+function formatRelationship(
+  value: string | null
+) {
+  if (!value) {
+    return "Associated Act";
+  }
+
+  return value
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (letter) =>
+      letter.toUpperCase()
     );
 }
 
@@ -193,14 +110,12 @@ function PlatformIcon({
 }: {
   platform: string;
 }) {
-  const key =
-    platform
-      .trim()
-      .toLowerCase()
-      .replaceAll(" ", "_");
+  const key = platform
+    .trim()
+    .toLowerCase()
+    .replaceAll(" ", "_");
 
-  const iconClass =
-    "h-5 w-5";
+  const iconClass = "h-5 w-5";
 
   switch (key) {
     case "youtube":
@@ -218,7 +133,6 @@ function PlatformIcon({
             rx="4"
             fill="currentColor"
           />
-
           <path
             d="M10 9L16 12L10 15V9Z"
             fill="white"
@@ -240,21 +154,18 @@ function PlatformIcon({
             r="10"
             fill="currentColor"
           />
-
           <path
             d="M7 9.2C10.8 8.2 15.3 8.6 18.3 10.2"
             stroke="white"
             strokeWidth="1.7"
             strokeLinecap="round"
           />
-
           <path
             d="M7.8 12.2C10.9 11.4 14.6 11.8 17.2 13.1"
             stroke="white"
             strokeWidth="1.5"
             strokeLinecap="round"
           />
-
           <path
             d="M8.7 15C11.1 14.4 13.8 14.7 16.1 15.8"
             stroke="white"
@@ -281,13 +192,11 @@ function PlatformIcon({
             height="18"
             rx="5"
           />
-
           <circle
             cx="12"
             cy="12"
             r="4"
           />
-
           <circle
             cx="17.5"
             cy="6.5"
@@ -312,14 +221,12 @@ function PlatformIcon({
           strokeLinejoin="round"
         >
           <path d="M9 18V6l10-2v12" />
-
           <ellipse
             cx="6.5"
             cy="18"
             rx="2.5"
             ry="2"
           />
-
           <ellipse
             cx="16.5"
             cy="16"
@@ -421,7 +328,6 @@ function PlatformIcon({
             cy="12"
             r="9"
           />
-
           <path d="M3 12h18" />
           <path d="M12 3c2.5 2.5 3.5 5.5 3.5 9s-1 6.5-3.5 9" />
           <path d="M12 3c-2.5 2.5-3.5 5.5-3.5 9s1 6.5 3.5 9" />
@@ -459,9 +365,7 @@ function PlatformIconLink({
 }) {
   const linkLabel =
     label ??
-    formatPlatform(
-      platform
-    );
+    formatPlatform(platform);
 
   return (
     <a
@@ -470,7 +374,7 @@ function PlatformIconLink({
       rel="noopener noreferrer"
       aria-label={linkLabel}
       title={linkLabel}
-      className="inline-flex h-11 w-11 shrink-0 items-center justify-center border-2 border-black bg-white transition-colors hover:bg-black hover:text-white"
+      className="inline-flex h-10 w-10 shrink-0 items-center justify-center border-2 border-black bg-white transition-colors hover:bg-black hover:text-white"
     >
       <PlatformIcon
         platform={platform}
@@ -483,160 +387,11 @@ function PlatformIconLink({
   );
 }
 
-function formatRecommendation(
-  type: string | null
-) {
-  if (!type) {
-    return null;
-  }
-
-  return type
-    .replaceAll("_", " ")
-    .replace(
-      /\b\w/g,
-      (letter) =>
-        letter.toUpperCase()
-    );
-}
-
-function formatDuration(
-  seconds: number | null
-) {
-  if (
-    seconds === null ||
-    seconds === undefined
-  ) {
-    return null;
-  }
-
-  const minutes =
-    Math.floor(
-      seconds / 60
-    );
-
-  const remainingSeconds =
-    seconds % 60;
-
-  return `${minutes}:${String(
-    remainingSeconds
-  ).padStart(
-    2,
-    "0"
-  )}`;
-}
-
-function firstRelation<T>(
-  value:
-    | T
-    | T[]
-    | null
-    | undefined
-): T | null {
-  if (!value) {
-    return null;
-  }
-
-  return Array.isArray(
-    value
-  )
-    ? value[0] ?? null
-    : value;
-}
-
-function formatEventDate(
-  value: string,
-  timeZone: string
-) {
-  try {
-    return new Intl.DateTimeFormat(
-      "en-US",
-      {
-        timeZone,
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      }
-    ).format(
-      new Date(value)
-    );
-  } catch {
-    return new Date(
-      value
-    ).toLocaleDateString(
-      "en-US",
-      {
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      }
-    );
-  }
-}
-
-function formatEventTime(
-  value: string | null,
-  timeZone: string
-) {
-  if (!value) {
-    return null;
-  }
-
-  try {
-    return new Intl.DateTimeFormat(
-      "en-US",
-      {
-        timeZone,
-        hour: "numeric",
-        minute: "2-digit",
-      }
-    ).format(
-      new Date(value)
-    );
-  } catch {
-    return new Date(
-      value
-    ).toLocaleTimeString(
-      "en-US",
-      {
-        hour: "numeric",
-        minute: "2-digit",
-      }
-    );
-  }
-}
-
-function formatEventStatus(
-  value: string
-) {
-  return value
-    .replaceAll("_", " ")
-    .replace(
-      /\b\w/g,
-      (letter) =>
-        letter.toUpperCase()
-    );
-}
-
-function formatBillingRole(
-  value: string
-) {
-  return value
-    .replaceAll("_", " ")
-    .replace(
-      /\b\w/g,
-      (letter) =>
-        letter.toUpperCase()
-    );
-}
-
 export default async function ArtistPage({
   params,
 }: ArtistPageProps) {
-  const {
-    slug,
-  } = await params;
+  const { slug } =
+    await params;
 
   const supabase =
     await createClient();
@@ -723,159 +478,6 @@ export default async function ArtistPage({
     ) as AssociatedArtist[];
 
   // ============================================
-  // UPCOMING EVENTS
-  // ============================================
-
-  const {
-    data: eventArtistLinks,
-    error: eventLinksError,
-  } = await supabase
-    .from(
-      "event_artists"
-    )
-    .select(
-      "event_id"
-    )
-    .eq(
-      "artist_id",
-      artist.id
-    );
-
-  if (eventLinksError) {
-    console.error(
-      "artist event links query error:",
-      eventLinksError
-    );
-  }
-
-  const eventIds =
-    [
-      ...new Set(
-        (
-          (
-            eventArtistLinks ??
-            []
-          ) as EventArtistLink[]
-        ).map(
-          (row) =>
-            row.event_id
-        )
-      ),
-    ];
-
-  let upcomingEvents:
-    UpcomingEvent[] = [];
-
-  if (
-    eventIds.length >
-    0
-  ) {
-    const {
-      data: eventRows,
-      error: eventsError,
-    } = await supabase
-      .from(
-        "events"
-      )
-      .select(
-        `
-        id,
-        title,
-        slug,
-        event_type,
-        status,
-        start_at,
-        doors_at,
-        end_at,
-        timezone,
-        ticket_url,
-        event_url,
-        description_short,
-        all_ages,
-        featured,
-        published,
-
-        venue:venues (
-          id,
-          name,
-          slug,
-          address_line_1,
-          address_line_2,
-          postal_code,
-          website_url,
-
-          location:locations (
-            id,
-            name,
-            city,
-            region,
-            country
-          )
-        ),
-
-        location:locations (
-          id,
-          name,
-          city,
-          region,
-          country
-        ),
-
-        lineup:event_artists (
-          billing_role,
-          billing_order,
-
-          artist:artists (
-            id,
-            name,
-            slug,
-            published
-          )
-        )
-        `
-      )
-      .in(
-        "id",
-        eventIds
-      )
-      .eq(
-        "published",
-        true
-      )
-      .gte(
-        "start_at",
-        new Date().toISOString()
-      )
-      .in(
-        "status",
-        [
-          "scheduled",
-          "postponed",
-          "cancelled",
-        ]
-      )
-      .order(
-        "start_at",
-        {
-          ascending: true,
-        }
-      );
-
-    if (eventsError) {
-      console.error(
-        "upcoming events query error:",
-        eventsError
-      );
-    } else {
-      upcomingEvents =
-        (
-          eventRows ??
-          []
-        ) as unknown as UpcomingEvent[];
-    }
-  }
-
-  // ============================================
   // NORMALIZE DATA
   // ============================================
 
@@ -892,10 +494,7 @@ export default async function ArtistPage({
         []
       ) as ArtistLink[]
     ).sort(
-      (
-        a,
-        b
-      ) =>
+      (a, b) =>
         (
           a.sort_order ??
           0
@@ -911,12 +510,6 @@ export default async function ArtistPage({
       musicData?.releases ??
       []
     ) as Release[];
-
-  const recommendedTracks =
-    (
-      musicData?.recommended_tracks ??
-      []
-    ) as RecommendedTrack[];
 
   const scenes =
     (
@@ -937,21 +530,6 @@ export default async function ArtistPage({
   const location =
     artist.location ??
     null;
-
-  const primaryScene =
-    scenes.find(
-      (scene) =>
-        scene.is_primary
-    ) ??
-    scenes[0] ??
-    null;
-
-  const secondaryScenes =
-    scenes.filter(
-      (scene) =>
-        scene.slug !==
-        primaryScene?.slug
-    );
 
   // ============================================
   // HERO IMAGE
@@ -978,9 +556,7 @@ export default async function ArtistPage({
   if (
     heroImage?.storage_path
   ) {
-    const {
-      data,
-    } =
+    const { data } =
       supabase.storage
         .from(
           "artist-images"
@@ -993,6 +569,10 @@ export default async function ArtistPage({
       data.publicUrl;
   }
 
+  // ============================================
+  // DISPLAY VALUES
+  // ============================================
+
   const locationLabel =
     location
       ? [
@@ -1001,26 +581,36 @@ export default async function ArtistPage({
           location.region,
           location.country,
         ]
-          .filter(
-            Boolean
-          )
-          .join(
-            ", "
-          )
+          .filter(Boolean)
+          .join(", ")
       : null;
-
-  const artistLinks =
-    links;
 
   const featuredRelease =
     releases.find(
-      (
-        release
-      ) =>
+      (release) =>
         release.featured
     ) ??
     releases[0] ??
     null;
+
+  const additionalReleases =
+    featuredRelease
+      ? releases.filter(
+          (release) =>
+            release.id !==
+            featuredRelease.id
+        )
+      : releases;
+
+  const longBio =
+    artist.bio_long?.trim();
+
+  const shortBio =
+    artist.bio_short?.trim();
+
+  const showLongBio =
+    longBio &&
+    longBio !== shortBio;
 
   return (
     <main className="min-h-screen bg-[#f3efe4] text-black">
@@ -1030,50 +620,52 @@ export default async function ArtistPage({
       />
 
       {/* ========================================
-          ARTIST HERO
+          ARTIST
       ======================================== */}
 
       <section className="border-b-2 border-black bg-white">
-        <div className="grid lg:grid-cols-[minmax(0,1fr)_320px]">
-          <div className="flex flex-col justify-between border-black px-4 py-8 sm:px-6 sm:py-10 lg:min-h-[480px] lg:border-r-2 lg:px-8 lg:py-12">
+        <div className="grid lg:grid-cols-[minmax(0,1.35fr)_minmax(300px,0.65fr)]">
+          {/* IDENTITY */}
+
+          <div className="flex flex-col justify-between border-black px-4 py-7 sm:px-6 sm:py-9 lg:min-h-[460px] lg:border-r-2 lg:px-8 lg:py-10">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-black/45">
-                Artist
-              </p>
-
-              {locationLabel && (
-                <p className="mt-3 text-[11px] font-black uppercase tracking-[0.12em]">
-                  {locationLabel}
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-black/45">
+                  Artist
                 </p>
-              )}
-            </div>
 
-            <div className="py-8 lg:py-10">
-              <h1 className="max-w-5xl break-words text-[clamp(2.5rem,14vw,6rem)] font-black uppercase leading-[0.86] tracking-[-0.055em]">
+                {locationLabel && (
+                  <p className="text-[10px] font-black uppercase tracking-[0.11em] text-black/65">
+                    {locationLabel}
+                  </p>
+                )}
+              </div>
+
+              <h1 className="mt-6 max-w-5xl break-words text-[clamp(3rem,10vw,6.5rem)] font-black uppercase leading-[0.84] tracking-[-0.055em]">
                 {artist.name}
               </h1>
 
-              {artist.bio_short && (
-                <p className="mt-6 max-w-2xl text-lg font-bold leading-7 sm:text-xl">
-                  {artist.bio_short}
+              {shortBio && (
+                <p className="mt-6 max-w-2xl text-base font-medium leading-7 text-black/70 sm:text-lg sm:leading-8">
+                  {shortBio}
                 </p>
               )}
             </div>
 
-            <div>
+            <div className="mt-8">
+              {/* GENRES */}
+
               {genres.length >
                 0 && (
                 <div className="flex flex-wrap gap-2">
                   {genres.map(
-                    (
-                      genre
-                    ) => (
+                    (genre) => (
                       <span
                         key={
                           genre.id ??
                           genre.slug
                         }
-                        className="border-2 border-black bg-black min-h-9 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.1em] text-white"
+                        className="border-2 border-black bg-black px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.09em] text-white"
                       >
                         {genre.name}
                       </span>
@@ -1082,9 +674,11 @@ export default async function ArtistPage({
                 </div>
               )}
 
-              <div className="mt-5 flex flex-wrap items-center gap-2">
+              {/* DETAILS */}
+
+              <div className="mt-3 flex flex-wrap gap-2">
                 {artist.year_started && (
-                  <span className="border-2 border-black bg-white min-h-9 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.1em]">
+                  <span className="border-2 border-black bg-white px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.09em]">
                     {artist.year_started}
                     {artist.year_ended
                       ? `–${artist.year_ended}`
@@ -1093,29 +687,31 @@ export default async function ArtistPage({
                 )}
 
                 {artist.status && (
-                  <span className="border-2 border-black bg-white min-h-9 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.1em]">
+                  <span className="border-2 border-black bg-white px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.09em]">
                     {artist.status}
                   </span>
                 )}
 
                 {artist.artist_type && (
-                  <span className="border-2 border-black bg-white min-h-9 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.1em]">
+                  <span className="border-2 border-black bg-white px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.09em]">
                     {artist.artist_type}
                   </span>
                 )}
               </div>
 
-              {artistLinks.length >
+              {/* SOCIAL LINKS */}
+
+              {links.length >
                 0 && (
-                <div className="mt-5 flex flex-wrap gap-2">
-                  {artistLinks.map(
-                    (
-                      link
-                    ) => (
+                <div className="mt-5 flex flex-wrap items-center gap-2">
+                  <span className="mr-1 text-[9px] font-black uppercase tracking-[0.15em] text-black/45">
+                    Listen / Follow
+                  </span>
+
+                  {links.map(
+                    (link) => (
                       <PlatformIconLink
-                        key={
-                          `${link.platform}-${link.url}`
-                        }
+                        key={`${link.platform}-${link.url}`}
                         platform={
                           link.platform
                         }
@@ -1133,7 +729,9 @@ export default async function ArtistPage({
             </div>
           </div>
 
-          <div className="relative aspect-[16/10] overflow-hidden bg-black lg:aspect-auto lg:min-h-[480px]">
+          {/* PHOTO */}
+
+          <div className="relative aspect-[4/3] overflow-hidden bg-black lg:aspect-auto lg:min-h-[460px]">
             {heroImageUrl &&
             heroImage ? (
               <>
@@ -1152,17 +750,18 @@ export default async function ArtistPage({
                   }}
                 />
 
-                <div className="absolute inset-0 bg-black/10" />
-
                 {heroImage.photographer && (
-                  <div className="absolute bottom-0 right-0 bg-black px-3 py-2 text-[9px] font-black uppercase tracking-[0.1em] text-white">
-                    Photo: {heroImage.photographer}
+                  <div className="absolute bottom-0 right-0 bg-black px-3 py-2 text-[8px] font-black uppercase tracking-[0.1em] text-white">
+                    Photo:{" "}
+                    {
+                      heroImage.photographer
+                    }
                   </div>
                 )}
               </>
             ) : (
-              <div className="flex h-full min-h-[320px] items-end p-6 text-white sm:p-8">
-                <p className="text-4xl font-black uppercase leading-[0.88] tracking-[-0.04em]">
+              <div className="flex h-full min-h-[300px] items-end p-6 text-white">
+                <p className="text-3xl font-black uppercase leading-[0.9] tracking-[-0.04em]">
                   {artist.name}
                 </p>
               </div>
@@ -1172,104 +771,129 @@ export default async function ArtistPage({
       </section>
 
       {/* ========================================
-          ABOUT
+          FULL BIO
       ======================================== */}
 
-      <section className="border-b-2 border-black">
-        <div className="grid lg:grid-cols-[220px_minmax(0,1fr)]">
-          <div className="border-black px-4 py-6 sm:px-6 lg:border-r-2 lg:px-8">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-black/45">
-              About
-            </p>
-          </div>
+      {showLongBio && (
+        <section className="border-b-2 border-black">
+          <div className="grid lg:grid-cols-[180px_minmax(0,1fr)]">
+            <div className="border-black px-4 py-6 sm:px-6 lg:border-r-2 lg:px-8 lg:py-8">
+              <p className="text-[9px] font-black uppercase tracking-[0.18em] text-black/45">
+                About
+              </p>
+            </div>
 
-          <div className="px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-            {artist.bio_long ? (
-              <p className="max-w-4xl whitespace-pre-line text-base leading-7 text-black/75 sm:text-lg sm:leading-8">
-                {artist.bio_long}
+            <div className="px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+              <p className="max-w-4xl whitespace-pre-line text-base leading-7 text-black/70 sm:text-lg sm:leading-8">
+                {longBio}
               </p>
-            ) : artist.bio_short ? (
-              <p className="max-w-4xl text-base leading-7 text-black/75 sm:text-lg">
-                {artist.bio_short}
-              </p>
-            ) : (
-              <p className="text-base text-black/50">
-                Artist biography coming soon.
-              </p>
-            )}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* ========================================
-          MUSIC
+          RELEASES
       ======================================== */}
 
       <section className="border-b-2 border-black bg-white">
-        <div className="px-4 py-7 sm:px-6 sm:py-9 lg:px-8 lg:py-12">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
+          <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-black/45">
+              <p className="text-[9px] font-black uppercase tracking-[0.18em] text-black/45">
                 Music
               </p>
 
-              <h2 className="mt-1 text-[clamp(2rem,4vw,3.25rem)] font-black uppercase leading-[0.92] tracking-[-0.04em]">
-                Listen First
+              <h2 className="mt-1 text-[clamp(2rem,5vw,3.5rem)] font-black uppercase leading-[0.9] tracking-[-0.045em]">
+                Releases
               </h2>
             </div>
+
+            {releases.length >
+              0 && (
+              <p className="text-[9px] font-black uppercase tracking-[0.12em] text-black/45">
+                {
+                  releases.length
+                }{" "}
+                {releases.length ===
+                1
+                  ? "Release"
+                  : "Releases"}
+              </p>
+            )}
           </div>
 
-          <div className="mt-7 max-w-xl">
-            <div className="border-2 border-black bg-[#f3efe4] p-4 sm:p-6">
-              <p className="text-[9px] font-black uppercase tracking-[0.16em] text-black/45">
-                Featured Release
-              </p>
+          {!featuredRelease ? (
+            <p className="mt-6 text-sm text-black/55">
+              No releases are listed yet.
+            </p>
+          ) : (
+            <>
+              {/* ESSENTIAL RELEASE */}
 
-              {featuredRelease ? (
-                <div className="mt-4">
-                  {featuredRelease.cover_image_path && (
-                    <div className="mb-5 aspect-square overflow-hidden border-2 border-black bg-black">
-                      <img
-                        src={
-                          supabase.storage
-                            .from(
-                              "release-images"
-                            )
-                            .getPublicUrl(
-                              featuredRelease.cover_image_path
-                            ).data.publicUrl
-                        }
-                        alt={
+              <article className="mt-7 grid overflow-hidden border-2 border-black bg-[#f3efe4] md:grid-cols-[minmax(220px,340px)_minmax(0,1fr)]">
+                <div className="aspect-square border-b-2 border-black bg-black md:border-b-0 md:border-r-2">
+                  {featuredRelease.cover_image_path ? (
+                    <img
+                      src={
+                        supabase.storage
+                          .from(
+                            "release-images"
+                          )
+                          .getPublicUrl(
+                            featuredRelease.cover_image_path
+                          ).data
+                          .publicUrl
+                      }
+                      alt={
+                        featuredRelease.title
+                      }
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full items-center justify-center p-8 text-center text-white">
+                      <span className="text-xl font-black uppercase tracking-[-0.02em]">
+                        {
                           featuredRelease.title
                         }
-                        className="h-full w-full object-cover"
-                      />
+                      </span>
                     </div>
                   )}
+                </div>
 
-                  <h3 className="text-2xl font-black uppercase tracking-[-0.03em]">
-                    {featuredRelease.title}
-                  </h3>
+                <div className="flex flex-col justify-between p-5 sm:p-7">
+                  <div>
+                    <p className="text-[9px] font-black uppercase tracking-[0.18em] text-black/45">
+                      Essential Release
+                    </p>
 
-                  <p className="mt-2 text-[10px] font-black uppercase tracking-[0.1em] text-black/45">
-                    {featuredRelease.release_type}
-                    {featuredRelease.release_date
-                      ? ` · ${featuredRelease.release_date}`
-                      : ""}
-                  </p>
+                    <h3 className="mt-3 text-3xl font-black uppercase leading-[0.92] tracking-[-0.04em] sm:text-4xl">
+                      {
+                        featuredRelease.title
+                      }
+                    </h3>
+
+                    <p className="mt-3 text-[10px] font-black uppercase tracking-[0.1em] text-black/45">
+                      {formatReleaseType(
+                        featuredRelease.release_type
+                      )}
+
+                      {featuredRelease.release_date
+                        ? ` · ${featuredRelease.release_date}`
+                        : ""}
+                    </p>
+                  </div>
 
                   {featuredRelease.links &&
-                    featuredRelease.links.length >
+                    featuredRelease
+                      .links
+                      .length >
                       0 && (
-                      <div className="mt-4 flex flex-wrap gap-2">
+                      <div className="mt-7 flex flex-wrap gap-2">
                         {featuredRelease.links.map(
-                          (
-                            link
-                          ) => (
+                          (link) => (
                             <a
-                              key={
-                                `${link.platform}-${link.url}`
-                              }
+                              key={`${link.platform}-${link.url}`}
                               href={
                                 link.url
                               }
@@ -1277,9 +901,10 @@ export default async function ArtistPage({
                               rel="noopener noreferrer"
                               className="border-2 border-black bg-white px-3 py-2 text-[9px] font-black uppercase tracking-[0.1em] transition-colors hover:bg-black hover:text-white"
                             >
-                              {formatPlatform(
-                                link.platform
-                              )}{" "}
+                              {link.label ??
+                                formatPlatform(
+                                  link.platform
+                                )}{" "}
                               ↗
                             </a>
                           )
@@ -1287,204 +912,213 @@ export default async function ArtistPage({
                       </div>
                     )}
                 </div>
-              ) : (
-                <p className="mt-4 text-sm text-black/55">
-                  No featured release is listed yet.
-                </p>
-              )}
-            </div>
-          </div>
+              </article>
 
-          {releases.length >
-            1 && (
-            <div className="mt-8">
-              <p className="text-[9px] font-black uppercase tracking-[0.16em] text-black/45">
-                Releases
-              </p>
+              {/* MORE RELEASES */}
 
-              <div className="mt-4 grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
-                {releases.map(
-                  (
-                    release
-                  ) => (
-                    <article
-                      key={
-                        release.id
-                      }
-                      className="border-2 border-black bg-[#f3efe4] p-5"
-                    >
-                      <h3 className="text-xl font-black uppercase tracking-[-0.025em]">
-                        {release.title}
-                      </h3>
+              {additionalReleases.length >
+                0 && (
+                <div className="mt-9">
+                  <p className="text-[9px] font-black uppercase tracking-[0.16em] text-black/45">
+                    More Releases
+                  </p>
 
-                      <p className="mt-2 text-[9px] font-black uppercase tracking-[0.1em] text-black/45">
-                        {release.release_type}
-                        {release.release_date
-                          ? ` · ${release.release_date}`
-                          : ""}
-                      </p>
+                  <div className="mt-4 divide-y-2 divide-black border-y-2 border-black">
+                    {additionalReleases.map(
+                      (
+                        release
+                      ) => (
+                        <article
+                          key={
+                            release.id
+                          }
+                          className="grid gap-4 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+                        >
+                          <div>
+                            <h3 className="text-xl font-black uppercase tracking-[-0.025em]">
+                              {
+                                release.title
+                              }
+                            </h3>
 
-                      {release.links &&
-                        release.links.length >
-                          0 && (
-                          <div className="mt-4 flex flex-wrap gap-2">
-                            {release.links.map(
-                              (
-                                link
-                              ) => (
-                                <a
-                                  key={
-                                    `${link.platform}-${link.url}`
-                                  }
-                                  href={
-                                    link.url
-                                  }
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-[9px] font-black uppercase tracking-[0.1em] hover:underline"
-                                >
-                                  {formatPlatform(
-                                    link.platform
-                                  )}{" "}
-                                  ↗
-                                </a>
-                              )
-                            )}
+                            <p className="mt-1 text-[9px] font-black uppercase tracking-[0.1em] text-black/45">
+                              {formatReleaseType(
+                                release.release_type
+                              )}
+
+                              {release.release_date
+                                ? ` · ${release.release_date}`
+                                : ""}
+                            </p>
                           </div>
-                        )}
-                    </article>
-                  )
-                )}
-              </div>
-            </div>
+
+                          {release.links &&
+                            release
+                              .links
+                              .length >
+                              0 && (
+                              <div className="flex flex-wrap gap-x-4 gap-y-2 sm:justify-end">
+                                {release.links.map(
+                                  (
+                                    link
+                                  ) => (
+                                    <a
+                                      key={`${link.platform}-${link.url}`}
+                                      href={
+                                        link.url
+                                      }
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-[9px] font-black uppercase tracking-[0.1em] hover:underline"
+                                    >
+                                      {link.label ??
+                                        formatPlatform(
+                                          link.platform
+                                        )}{" "}
+                                      ↗
+                                    </a>
+                                  )
+                                )}
+                              </div>
+                            )}
+                        </article>
+                      )
+                    )}
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       </section>
 
       {/* ========================================
-          ASSOCIATED ARTISTS
+          ASSOCIATED ACTS
       ======================================== */}
 
-      <section className="border-b-2 border-black bg-white">
-        <div className="px-4 py-7 sm:px-6 sm:py-9 lg:px-8 lg:py-12">
-          <div className="flex items-end justify-between gap-5">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-black/45">
-                Connections
-              </p>
+      {associatedArtists.length >
+        0 && (
+        <section className="border-b-2 border-black">
+          <div className="px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
+            <div className="flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-[0.18em] text-black/45">
+                  Connections
+                </p>
 
-              <h2 className="mt-1 text-[clamp(2rem,4vw,3.25rem)] font-black uppercase leading-[0.92] tracking-[-0.04em]">
-                Associated Artists
-              </h2>
+                <h2 className="mt-1 text-[clamp(2rem,5vw,3.5rem)] font-black uppercase leading-[0.9] tracking-[-0.045em]">
+                  Associated Acts
+                </h2>
+              </div>
+
+              <p className="text-[9px] font-black uppercase tracking-[0.12em] text-black/45">
+                {
+                  associatedArtists.length
+                }{" "}
+                Connected
+              </p>
             </div>
 
-            <span className="text-[10px] font-black uppercase tracking-[0.12em] text-black/45">
-              {associatedArtists.length} Total
-            </span>
-          </div>
-
-          {!associatedArtists.length ? (
-            <p className="mt-6 text-sm text-black/60">
-              No associated artists are currently listed.
-            </p>
-          ) : (
-            <div className="mt-6 grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+            <div className="mt-6 grid gap-3 md:grid-cols-2">
               {associatedArtists.map(
                 (
                   associated
-                ) => (
-                  <Link
-                    key={
-                      associated.artist_id
-                    }
-                    href={`/artists/${associated.slug}`}
-                    className="group border-2 border-black bg-[#f3efe4] p-5"
-                  >
-                    <p className="text-[9px] font-black uppercase tracking-[0.14em] text-black/45">
-                      {associated.relationship ??
-                        "Associated Artist"}
-                    </p>
+                ) => {
+                  const associatedLocation =
+                    associated.primary_location;
 
-                    <h3 className="mt-2 text-xl font-black uppercase tracking-[-0.025em] group-hover:underline">
-                      {associated.name}
-                    </h3>
-
-                    {associated.primary_location && (
-                      <p className="mt-2 text-[10px] font-black uppercase tracking-[0.1em] text-black/45">
-                        {[
-                          associated
-                            .primary_location
-                            .city ??
-                            associated
-                              .primary_location
-                              .name,
-                          associated
-                            .primary_location
-                            .region,
+                  const associatedLocationLabel =
+                    associatedLocation
+                      ? [
+                          associatedLocation.city ??
+                            associatedLocation.name,
+                          associatedLocation.region,
                         ]
                           .filter(
                             Boolean
                           )
                           .join(
                             ", "
-                          )}
-                      </p>
-                    )}
-
-                    {associated.genres.length >
-                      0 && (
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        {associated.genres
-                          .slice(
-                            0,
-                            3
                           )
-                          .map(
-                            (
-                              genre
-                            ) => (
-                              <span
-                                key={
-                                  genre.slug
-                                }
-                                className="border-2 border-black bg-white min-h-7 px-2 py-1 text-[9px] font-black uppercase"
-                              >
-                                {genre.name}
-                              </span>
-                            )
+                      : null;
+
+                  return (
+                    <Link
+                      key={
+                        associated.artist_id
+                      }
+                      href={`/artists/${associated.slug}`}
+                      className="group grid grid-cols-[minmax(0,1fr)_auto] gap-4 border-2 border-black bg-white p-4 transition-colors hover:bg-black hover:text-white sm:p-5"
+                    >
+                      <div>
+                        <p className="text-[8px] font-black uppercase tracking-[0.15em] opacity-50">
+                          {formatRelationship(
+                            associated.relationship
                           )}
+                        </p>
+
+                        <h3 className="mt-1 text-xl font-black uppercase tracking-[-0.025em]">
+                          {
+                            associated.name
+                          }
+                        </h3>
+
+                        {associatedLocationLabel && (
+                          <p className="mt-1 text-[9px] font-black uppercase tracking-[0.09em] opacity-50">
+                            {
+                              associatedLocationLabel
+                            }
+                          </p>
+                        )}
+
+                        {associated
+                          .genres
+                          .length >
+                          0 && (
+                          <p className="mt-3 text-[9px] font-black uppercase tracking-[0.08em] opacity-65">
+                            {associated.genres
+                              .slice(
+                                0,
+                                3
+                              )
+                              .map(
+                                (
+                                  genre
+                                ) =>
+                                  genre.name
+                              )
+                              .join(
+                                " · "
+                              )}
+                          </p>
+                        )}
                       </div>
-                    )}
-                  </Link>
-                )
+
+                      <div className="flex items-center text-lg font-black">
+                        →
+                      </div>
+                    </Link>
+                  );
+                }
               )}
             </div>
-          )}
-        </div>
-      </section>
+          </div>
+        </section>
+      )}
 
       {/* ========================================
           SCENES
       ======================================== */}
 
-      <section>
-        <div className="px-4 py-7 sm:px-6 sm:py-9 lg:px-8 lg:py-12">
-          <div className="flex items-end justify-between gap-5">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-black/45">
-                Geography
-              </p>
+      {scenes.length >
+        0 && (
+        <section>
+          <div className="px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
+            <p className="text-[9px] font-black uppercase tracking-[0.18em] text-black/45">
+              Part Of
+            </p>
 
-              <h2 className="mt-1 text-[clamp(2rem,4vw,3.25rem)] font-black uppercase leading-[0.92] tracking-[-0.04em]">
-                Scenes
-              </h2>
-            </div>
-          </div>
-
-          {scenes &&
-            scenes.length >
-              0 ? (
-            <div className="mt-6 grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+            <div className="mt-4 flex flex-wrap gap-2">
               {scenes.map(
                 (
                   scene
@@ -1494,32 +1128,20 @@ export default async function ArtistPage({
                       scene.slug
                     }
                     href={`/scenes/${scene.slug}`}
-                    className="group border-2 border-black bg-white p-5"
+                    className={
+                      scene.is_primary
+                        ? "border-2 border-black bg-black px-4 py-3 text-[10px] font-black uppercase tracking-[0.09em] text-white transition-colors hover:bg-white hover:text-black"
+                        : "border-2 border-black bg-white px-4 py-3 text-[10px] font-black uppercase tracking-[0.09em] transition-colors hover:bg-black hover:text-white"
+                    }
                   >
-                    <p className="text-[9px] font-black uppercase tracking-[0.14em] text-black/45">
-                      {scene.is_primary
-                        ? "Primary Scene"
-                        : "Scene"}
-                    </p>
-
-                    <h3 className="mt-2 text-2xl font-black uppercase tracking-[-0.03em] group-hover:underline">
-                      {scene.name}
-                    </h3>
-
-                    <p className="mt-4 text-[10px] font-black uppercase tracking-[0.12em]">
-                      Explore Scene →
-                    </p>
+                    {scene.name} →
                   </Link>
                 )
               )}
             </div>
-          ) : (
-            <p className="mt-6 text-sm text-black/60">
-              No scene relationships are currently listed.
-            </p>
-          )}
-        </div>
-      </section>
+          </div>
+        </section>
+      )}
     </main>
   );
 }
