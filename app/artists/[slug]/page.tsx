@@ -75,19 +75,27 @@ type AssociatedArtist = {
   profile_image: string | null;
 };
 
-function formatPlatform(platform: string) {
+function formatPlatform(
+  platform: string
+) {
   return platform
     .replaceAll("_", " ")
-    .replace(/\b\w/g, (letter) =>
-      letter.toUpperCase()
+    .replace(
+      /\b\w/g,
+      (letter) =>
+        letter.toUpperCase()
     );
 }
 
-function formatReleaseType(value: string) {
+function formatReleaseType(
+  value: string
+) {
   return value
     .replaceAll("_", " ")
-    .replace(/\b\w/g, (letter) =>
-      letter.toUpperCase()
+    .replace(
+      /\b\w/g,
+      (letter) =>
+        letter.toUpperCase()
     );
 }
 
@@ -100,8 +108,10 @@ function formatRelationship(
 
   return value
     .replaceAll("_", " ")
-    .replace(/\b\w/g, (letter) =>
-      letter.toUpperCase()
+    .replace(
+      /\b\w/g,
+      (letter) =>
+        letter.toUpperCase()
     );
 }
 
@@ -110,12 +120,17 @@ function PlatformIcon({
 }: {
   platform: string;
 }) {
-  const key = platform
-    .trim()
-    .toLowerCase()
-    .replaceAll(" ", "_");
+  const key =
+    platform
+      .trim()
+      .toLowerCase()
+      .replaceAll(
+        " ",
+        "_"
+      );
 
-  const iconClass = "h-5 w-5";
+  const iconClass =
+    "h-5 w-5";
 
   switch (key) {
     case "youtube":
@@ -123,7 +138,9 @@ function PlatformIcon({
         <svg
           viewBox="0 0 24 24"
           aria-hidden="true"
-          className={iconClass}
+          className={
+            iconClass
+          }
         >
           <rect
             x="2"
@@ -133,6 +150,7 @@ function PlatformIcon({
             rx="4"
             fill="currentColor"
           />
+
           <path
             d="M10 9L16 12L10 15V9Z"
             fill="white"
@@ -145,7 +163,9 @@ function PlatformIcon({
         <svg
           viewBox="0 0 24 24"
           aria-hidden="true"
-          className={iconClass}
+          className={
+            iconClass
+          }
           fill="none"
         >
           <circle
@@ -154,18 +174,21 @@ function PlatformIcon({
             r="10"
             fill="currentColor"
           />
+
           <path
             d="M7 9.2C10.8 8.2 15.3 8.6 18.3 10.2"
             stroke="white"
             strokeWidth="1.7"
             strokeLinecap="round"
           />
+
           <path
             d="M7.8 12.2C10.9 11.4 14.6 11.8 17.2 13.1"
             stroke="white"
             strokeWidth="1.5"
             strokeLinecap="round"
           />
+
           <path
             d="M8.7 15C11.1 14.4 13.8 14.7 16.1 15.8"
             stroke="white"
@@ -180,7 +203,9 @@ function PlatformIcon({
         <svg
           viewBox="0 0 24 24"
           aria-hidden="true"
-          className={iconClass}
+          className={
+            iconClass
+          }
           fill="none"
           stroke="currentColor"
           strokeWidth="2"
@@ -192,11 +217,13 @@ function PlatformIcon({
             height="18"
             rx="5"
           />
+
           <circle
             cx="12"
             cy="12"
             r="4"
           />
+
           <circle
             cx="17.5"
             cy="6.5"
@@ -213,7 +240,9 @@ function PlatformIcon({
         <svg
           viewBox="0 0 24 24"
           aria-hidden="true"
-          className={iconClass}
+          className={
+            iconClass
+          }
           fill="none"
           stroke="currentColor"
           strokeWidth="2"
@@ -221,12 +250,14 @@ function PlatformIcon({
           strokeLinejoin="round"
         >
           <path d="M9 18V6l10-2v12" />
+
           <ellipse
             cx="6.5"
             cy="18"
             rx="2.5"
             ry="2"
           />
+
           <ellipse
             cx="16.5"
             cy="16"
@@ -241,7 +272,9 @@ function PlatformIcon({
         <svg
           viewBox="0 0 24 24"
           aria-hidden="true"
-          className={iconClass}
+          className={
+            iconClass
+          }
           fill="currentColor"
         >
           <path d="M2 14.5h1v4H2v-4Zm2-2h1v6H4v-6Zm2-1h1v7H6v-7Zm2-2h1v9H8v-9Zm3-.5a5 5 0 0 1 9.6 2H21a3 3 0 0 1 0 6H11V9Z" />
@@ -253,7 +286,9 @@ function PlatformIcon({
         <svg
           viewBox="0 0 24 24"
           aria-hidden="true"
-          className={iconClass}
+          className={
+            iconClass
+          }
           fill="currentColor"
         >
           <path d="M7.2 6H22l-5.2 12H2L7.2 6Z" />
@@ -265,7 +300,9 @@ function PlatformIcon({
         <svg
           viewBox="0 0 24 24"
           aria-hidden="true"
-          className={iconClass}
+          className={
+            iconClass
+          }
           fill="none"
           stroke="currentColor"
           strokeWidth="2"
@@ -303,7 +340,9 @@ function PlatformIcon({
         <svg
           viewBox="0 0 24 24"
           aria-hidden="true"
-          className={iconClass}
+          className={
+            iconClass
+          }
           fill="currentColor"
         >
           <path d="M12 11.2C10.8 8.8 7.5 4.7 4.5 2.7 1.6.8.5 1.1.5 4.5c0 .7.4 5.7.7 6.5 1 3.2 4.6 4.3 7.7 3.7-5.4.9-6.8 4-3.8 7 5.7 5.9 6.5-1.3 6.9-4 .4 2.7 1.2 9.9 6.9 4 3-3 1.6-6.1-3.8-7 3.1.6 6.7-.5 7.7-3.7.3-.8.7-5.8.7-6.5 0-3.4-1.1-3.7-4-1.8-3 2-6.3 6.1-7.5 8.5Z" />
@@ -316,7 +355,9 @@ function PlatformIcon({
         <svg
           viewBox="0 0 24 24"
           aria-hidden="true"
-          className={iconClass}
+          className={
+            iconClass
+          }
           fill="none"
           stroke="currentColor"
           strokeWidth="2"
@@ -328,8 +369,11 @@ function PlatformIcon({
             cy="12"
             r="9"
           />
+
           <path d="M3 12h18" />
+
           <path d="M12 3c2.5 2.5 3.5 5.5 3.5 9s-1 6.5-3.5 9" />
+
           <path d="M12 3c-2.5 2.5-3.5 5.5-3.5 9s1 6.5 3.5 9" />
         </svg>
       );
@@ -339,7 +383,9 @@ function PlatformIcon({
         <svg
           viewBox="0 0 24 24"
           aria-hidden="true"
-          className={iconClass}
+          className={
+            iconClass
+          }
           fill="none"
           stroke="currentColor"
           strokeWidth="2"
@@ -365,19 +411,27 @@ function PlatformIconLink({
 }) {
   const linkLabel =
     label ??
-    formatPlatform(platform);
+    formatPlatform(
+      platform
+    );
 
   return (
     <a
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      aria-label={linkLabel}
-      title={linkLabel}
+      aria-label={
+        linkLabel
+      }
+      title={
+        linkLabel
+      }
       className="inline-flex h-10 w-10 shrink-0 items-center justify-center border-2 border-black bg-white transition-colors hover:bg-black hover:text-white"
     >
       <PlatformIcon
-        platform={platform}
+        platform={
+          platform
+        }
       />
 
       <span className="sr-only">
@@ -390,7 +444,9 @@ function PlatformIconLink({
 export default async function ArtistPage({
   params,
 }: ArtistPageProps) {
-  const { slug } =
+  const {
+    slug,
+  } =
     await params;
 
   const supabase =
@@ -403,12 +459,14 @@ export default async function ArtistPage({
   const {
     data: artist,
     error: artistError,
-  } = await supabase.rpc(
-    "get_artist_detail",
-    {
-      artist_slug: slug,
-    }
-  );
+  } =
+    await supabase.rpc(
+      "get_artist_detail",
+      {
+        artist_slug:
+          slug,
+      }
+    );
 
   if (
     artistError ||
@@ -424,14 +482,18 @@ export default async function ArtistPage({
   const {
     data: music,
     error: musicError,
-  } = await supabase.rpc(
-    "get_artist_music",
-    {
-      artist_slug: slug,
-    }
-  );
+  } =
+    await supabase.rpc(
+      "get_artist_music",
+      {
+        artist_slug:
+          slug,
+      }
+    );
 
-  if (musicError) {
+  if (
+    musicError
+  ) {
     console.error(
       "get_artist_music error:",
       musicError
@@ -439,7 +501,9 @@ export default async function ArtistPage({
   }
 
   const musicData =
-    Array.isArray(music)
+    Array.isArray(
+      music
+    )
       ? music[0]
       : music;
 
@@ -448,16 +512,22 @@ export default async function ArtistPage({
   // ============================================
 
   const {
-    data: associationData,
-    error: associationError,
-  } = await supabase.rpc(
-    "get_artist_associations",
-    {
-      artist_slug: slug,
-    }
-  );
+    data:
+      associationData,
+    error:
+      associationError,
+  } =
+    await supabase.rpc(
+      "get_artist_associations",
+      {
+        artist_slug:
+          slug,
+      }
+    );
 
-  if (associationError) {
+  if (
+    associationError
+  ) {
     console.error(
       "get_artist_associations error:",
       associationError
@@ -494,7 +564,10 @@ export default async function ArtistPage({
         []
       ) as ArtistLink[]
     ).sort(
-      (a, b) =>
+      (
+        a,
+        b
+      ) =>
         (
           a.sort_order ??
           0
@@ -537,12 +610,16 @@ export default async function ArtistPage({
 
   const heroImage =
     images.find(
-      (image) =>
+      (
+        image
+      ) =>
         image.image_type ===
         "hero"
     ) ??
     images.find(
-      (image) =>
+      (
+        image
+      ) =>
         image.image_type ===
         "profile"
     ) ??
@@ -556,7 +633,9 @@ export default async function ArtistPage({
   if (
     heroImage?.storage_path
   ) {
-    const { data } =
+    const {
+      data,
+    } =
       supabase.storage
         .from(
           "artist-images"
@@ -581,13 +660,19 @@ export default async function ArtistPage({
           location.region,
           location.country,
         ]
-          .filter(Boolean)
-          .join(", ")
+          .filter(
+            Boolean
+          )
+          .join(
+            ", "
+          )
       : null;
 
   const featuredRelease =
     releases.find(
-      (release) =>
+      (
+        release
+      ) =>
         release.featured
     ) ??
     releases[0] ??
@@ -596,7 +681,9 @@ export default async function ArtistPage({
   const additionalReleases =
     featuredRelease
       ? releases.filter(
-          (release) =>
+          (
+            release
+          ) =>
             release.id !==
             featuredRelease.id
         )
@@ -610,7 +697,8 @@ export default async function ArtistPage({
 
   const showLongBio =
     longBio &&
-    longBio !== shortBio;
+    longBio !==
+      shortBio;
 
   return (
     <main className="min-h-screen bg-[#f3efe4] text-black">
@@ -624,10 +712,10 @@ export default async function ArtistPage({
       ======================================== */}
 
       <section className="border-b-2 border-black bg-white">
-        <div className="grid lg:grid-cols-[minmax(0,1.35fr)_minmax(300px,0.65fr)]">
+        <div className="grid items-stretch lg:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
           {/* IDENTITY */}
 
-          <div className="flex flex-col justify-between border-black px-4 py-7 sm:px-6 sm:py-9 lg:min-h-[460px] lg:border-r-2 lg:px-8 lg:py-10">
+          <div className="flex h-full flex-col justify-between border-black px-4 py-6 sm:px-6 sm:py-8 lg:border-r-2 lg:px-8 lg:py-10">
             <div>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-black/45">
@@ -641,25 +729,27 @@ export default async function ArtistPage({
                 )}
               </div>
 
-              <h1 className="mt-6 max-w-5xl break-words text-[clamp(3rem,10vw,6.5rem)] font-black uppercase leading-[0.84] tracking-[-0.055em]">
+              <h1 className="mt-5 max-w-5xl break-words text-[clamp(2.6rem,10vw,6.5rem)] font-black uppercase leading-[0.84] tracking-[-0.055em]">
                 {artist.name}
               </h1>
 
               {shortBio && (
-                <p className="mt-6 max-w-2xl text-base font-medium leading-7 text-black/70 sm:text-lg sm:leading-8">
+                <p className="mt-5 max-w-2xl text-base font-medium leading-7 text-black/70 sm:text-lg sm:leading-8">
                   {shortBio}
                 </p>
               )}
             </div>
 
-            <div className="mt-8">
+            <div className="mt-7">
               {/* GENRES */}
 
               {genres.length >
                 0 && (
                 <div className="flex flex-wrap gap-2">
                   {genres.map(
-                    (genre) => (
+                    (
+                      genre
+                    ) => (
                       <span
                         key={
                           genre.id ??
@@ -709,7 +799,9 @@ export default async function ArtistPage({
                   </span>
 
                   {links.map(
-                    (link) => (
+                    (
+                      link
+                    ) => (
                       <PlatformIconLink
                         key={`${link.platform}-${link.url}`}
                         platform={
@@ -731,10 +823,10 @@ export default async function ArtistPage({
 
           {/* PHOTO */}
 
-          <div className="relative aspect-[4/3] overflow-hidden bg-black lg:aspect-auto lg:min-h-[460px]">
+          <div className="flex items-center justify-center bg-black p-0 sm:p-4 lg:p-6">
             {heroImageUrl &&
             heroImage ? (
-              <>
+              <div className="relative flex w-full items-center justify-center overflow-hidden">
                 <img
                   src={
                     heroImageUrl
@@ -743,11 +835,16 @@ export default async function ArtistPage({
                     heroImage.alt_text ??
                     artist.name
                   }
-                  className="absolute inset-0 h-full w-full object-cover"
-                  style={{
-                    objectPosition:
-                      `${heroImage.position_x ?? 50}% ${heroImage.position_y ?? 50}%`,
-                  }}
+                  className="
+                    block
+                    h-auto
+                    w-auto
+                    max-w-full
+                    object-contain
+                    max-h-[320px]
+                    sm:max-h-[440px]
+                    lg:max-h-[560px]
+                  "
                 />
 
                 {heroImage.photographer && (
@@ -758,9 +855,9 @@ export default async function ArtistPage({
                     }
                   </div>
                 )}
-              </>
+              </div>
             ) : (
-              <div className="flex h-full min-h-[300px] items-end p-6 text-white">
+              <div className="flex min-h-[260px] w-full items-end p-6 text-white sm:min-h-[340px] lg:min-h-[420px]">
                 <p className="text-3xl font-black uppercase leading-[0.9] tracking-[-0.04em]">
                   {artist.name}
                 </p>
@@ -832,7 +929,7 @@ export default async function ArtistPage({
               {/* ESSENTIAL RELEASE */}
 
               <article className="mt-7 grid overflow-hidden border-2 border-black bg-[#f3efe4] md:grid-cols-[minmax(220px,340px)_minmax(0,1fr)]">
-                <div className="aspect-square border-b-2 border-black bg-black md:border-b-0 md:border-r-2">
+                <div className="flex max-h-[340px] items-center justify-center border-b-2 border-black bg-black md:border-b-0 md:border-r-2">
                   {featuredRelease.cover_image_path ? (
                     <img
                       src={
@@ -848,10 +945,10 @@ export default async function ArtistPage({
                       alt={
                         featuredRelease.title
                       }
-                      className="h-full w-full object-cover"
+                      className="block h-auto max-h-[340px] w-auto max-w-full object-contain"
                     />
                   ) : (
-                    <div className="flex h-full items-center justify-center p-8 text-center text-white">
+                    <div className="flex aspect-square w-full items-center justify-center p-8 text-center text-white">
                       <span className="text-xl font-black uppercase tracking-[-0.02em]">
                         {
                           featuredRelease.title
@@ -885,13 +982,13 @@ export default async function ArtistPage({
                   </div>
 
                   {featuredRelease.links &&
-                    featuredRelease
-                      .links
-                      .length >
+                    featuredRelease.links.length >
                       0 && (
                       <div className="mt-7 flex flex-wrap gap-2">
                         {featuredRelease.links.map(
-                          (link) => (
+                          (
+                            link
+                          ) => (
                             <a
                               key={`${link.platform}-${link.url}`}
                               href={
@@ -953,9 +1050,7 @@ export default async function ArtistPage({
                           </div>
 
                           {release.links &&
-                            release
-                              .links
-                              .length >
+                            release.links.length >
                               0 && (
                               <div className="flex flex-wrap gap-x-4 gap-y-2 sm:justify-end">
                                 {release.links.map(
@@ -1071,9 +1166,7 @@ export default async function ArtistPage({
                           </p>
                         )}
 
-                        {associated
-                          .genres
-                          .length >
+                        {associated.genres.length >
                           0 && (
                           <p className="mt-3 text-[9px] font-black uppercase tracking-[0.08em] opacity-65">
                             {associated.genres

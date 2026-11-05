@@ -187,12 +187,6 @@ type RenderedPointFeature = {
 const SOURCE_ID =
   "atlas-points";
 
-const CLUSTER_LAYER_ID =
-  "atlas-clusters";
-
-const CLUSTER_COUNT_LAYER_ID =
-  "atlas-cluster-count";
-
 const POINT_LAYER_ID =
   "atlas-unclustered-point";
 
@@ -1387,32 +1381,47 @@ function buildArtistPopup(
 
   return `
     <div style="
-      min-width:250px;
+      width:auto;
+      min-width:220px;
       max-width:300px;
+      max-height:min(70vh,520px);
+      overflow-y:auto;
+      overflow-x:hidden;
       font-family:Arial,Helvetica,sans-serif;
+      overscroll-behavior:contain;
     ">
       ${
         imageUrl
           ? `
-            <div style="
-              width:100%;
-              height:118px;
-              margin-bottom:12px;
-              overflow:hidden;
-              border:1px solid #111;
-              background:#111;
-            ">
+            <a
+              href="/artists/${slug}"
+              style="
+                display:flex;
+                width:100%;
+                max-height:220px;
+                align-items:center;
+                justify-content:center;
+                margin-bottom:12px;
+                overflow:hidden;
+                border:1px solid #111;
+                background:#111;
+                text-decoration:none;
+              "
+            >
               <img
                 src="${imageUrl}"
                 alt="${name}"
                 style="
                   display:block;
-                  width:100%;
-                  height:100%;
-                  object-fit:cover;
+                  width:auto;
+                  max-width:100%;
+                  height:auto;
+                  max-height:220px;
+                  margin:0 auto;
+                  object-fit:contain;
                 "
               />
-            </div>
+            </a>
           `
           : ""
       }
@@ -1424,6 +1433,7 @@ function buildArtistPopup(
               margin-bottom:7px;
               font-size:10px;
               font-weight:700;
+              line-height:1.3;
               text-transform:uppercase;
               color:#666;
             ">
@@ -1461,6 +1471,7 @@ function buildArtistPopup(
                       padding:3px 5px;
                       font-size:9px;
                       font-weight:800;
+                      line-height:1.2;
                       text-transform:uppercase;
                     ">
                       ${escapeHtml(
@@ -1508,6 +1519,7 @@ function buildArtistPopup(
                   color:#111;
                   font-size:10px;
                   font-weight:800;
+                  letter-spacing:0.08em;
                   text-decoration:none;
                   text-transform:uppercase;
                 "
@@ -3312,12 +3324,6 @@ export default function AtlasMap({
 
                   cluster:
                     false,
-
-                  clusterRadius:
-                    50,
-
-                  clusterMaxZoom:
-                    13,
                 }
               );
             }
@@ -3415,99 +3421,6 @@ export default function AtlasMap({
             }
 
             // ==================================
-            // CLUSTERS
-            // ==================================
-
-            if (
-              !activeMap.getLayer(
-                CLUSTER_LAYER_ID
-              )
-            ) {
-              activeMap.addLayer({
-                id:
-                  CLUSTER_LAYER_ID,
-
-                type:
-                  "circle",
-
-                source:
-                  SOURCE_ID,
-
-                filter: [
-                  "has",
-                  "point_count",
-                ],
-
-                paint: {
-                  "circle-color":
-                    "#111111",
-
-                  "circle-radius": [
-                    "step",
-
-                    [
-                      "get",
-                      "point_count",
-                    ],
-
-                    18,
-
-                    10,
-                    22,
-
-                    30,
-                    28,
-                  ],
-
-                  "circle-stroke-color":
-                    "#ffffff",
-
-                  "circle-stroke-width":
-                    2,
-                },
-              });
-            }
-
-            // ==================================
-            // CLUSTER COUNT
-            // ==================================
-
-            if (
-              !activeMap.getLayer(
-                CLUSTER_COUNT_LAYER_ID
-              )
-            ) {
-              activeMap.addLayer({
-                id:
-                  CLUSTER_COUNT_LAYER_ID,
-
-                type:
-                  "symbol",
-
-                source:
-                  SOURCE_ID,
-
-                filter: [
-                  "has",
-                  "point_count",
-                ],
-
-                layout: {
-                  "text-field":
-                    "{point_count_abbreviated}",
-
-                  "text-size":
-                    12,
-                },
-
-                paint: {
-                  "text-color":
-                    "#ffffff",
-                },
-              });
-            }
-
-            // ==================================
             // ARTIST / EVENT POINTS
             // ==================================
 
@@ -3525,14 +3438,6 @@ export default function AtlasMap({
 
                 source:
                   SOURCE_ID,
-
-                filter: [
-                  "!",
-                  [
-                    "has",
-                    "point_count",
-                  ],
-                ],
 
                 paint: {
                   /*
@@ -3702,155 +3607,6 @@ export default function AtlasMap({
         );
 
         // ======================================
-        // CLUSTER CLICK
-        // ======================================
-
-        activeMap.on(
-          "click",
-          CLUSTER_LAYER_ID,
-          (
-            event
-          ) => {
-            if (
-              disposed
-            ) {
-              return;
-            }
-
-            const features =
-              activeMap.queryRenderedFeatures(
-                event.point,
-                {
-                  layers: [
-                    CLUSTER_LAYER_ID,
-                  ],
-                }
-              );
-
-            const feature =
-              features[0] as unknown as
-                | RenderedPointFeature
-                | undefined;
-
-            if (
-              !feature ||
-              feature.geometry.type !==
-                "Point" ||
-              !feature.geometry.coordinates
-            ) {
-              return;
-            }
-
-            const source =
-              activeMap.getSource(
-                SOURCE_ID
-              ) as
-                | GeoJSONSource
-                | undefined;
-
-            if (!source) {
-              return;
-            }
-
-            const clusterId =
-              Number(
-                feature.properties
-                  ?.cluster_id
-              );
-
-            if (
-              !Number.isFinite(
-                clusterId
-              )
-            ) {
-              return;
-            }
-
-            const longitude =
-              Number(
-                feature.geometry
-                  .coordinates[0]
-              );
-
-            const latitude =
-              Number(
-                feature.geometry
-                  .coordinates[1]
-              );
-
-            if (
-              !isValidLongitude(
-                longitude
-              ) ||
-              !isValidLatitude(
-                latitude
-              )
-            ) {
-              return;
-            }
-
-            const coordinates: [
-              number,
-              number,
-            ] = [
-              longitude,
-              latitude,
-            ];
-
-            /*
-             * Preserve callback API.
-             */
-            source.getClusterExpansionZoom(
-              clusterId,
-              (
-                error,
-                zoom
-              ) => {
-                if (
-                  error ||
-                  disposed
-                ) {
-                  if (
-                    error
-                  ) {
-                    console.error(
-                      "Unable to expand cluster:",
-                      error
-                    );
-                  }
-
-                  return;
-                }
-
-                if (
-                  typeof zoom !==
-                    "number" ||
-                  !Number.isFinite(
-                    zoom
-                  )
-                ) {
-                  return;
-                }
-
-                activeMap.easeTo({
-                  center:
-                    coordinates,
-
-                  zoom:
-                    Math.max(
-                      MIN_ZOOM,
-                      Math.min(
-                        MAX_ZOOM,
-                        zoom
-                      )
-                    ),
-                });
-              }
-            );
-          }
-        );
-
-        // ======================================
         // ARTIST HOVER PREVIEW
         // ======================================
 
@@ -3989,14 +3745,14 @@ export default function AtlasMap({
               popup.getElement();
 
             popupElement?.addEventListener(
-  "mouseenter",
-  clearHoverCloseTimer
-);
+              "mouseenter",
+              clearHoverCloseTimer
+            );
 
-popupElement?.addEventListener(
-  "mouseleave",
-  scheduleHoverClose
-);
+            popupElement?.addEventListener(
+              "mouseleave",
+              scheduleHoverClose
+            );
           };
 
         // ======================================
@@ -4097,6 +3853,31 @@ popupElement?.addEventListener(
 
             popupRef.current?.remove();
 
+            const clickedCoordinates:
+              [number, number] = [
+                longitude,
+                latitude,
+              ];
+
+            const isMobileViewport =
+              window.innerWidth <
+              640;
+
+            activeMap.easeTo({
+              center:
+                clickedCoordinates,
+              offset: [
+                0,
+                isMobileViewport
+                  ? 70
+                  : 110,
+              ],
+              duration:
+                300,
+              essential:
+                true,
+            });
+
             popupRef.current =
               new mapboxgl.Popup({
                 offset:
@@ -4111,10 +3892,9 @@ popupElement?.addEventListener(
                 maxWidth:
                   "320px",
               })
-                .setLngLat([
-                  longitude,
-                  latitude,
-                ])
+                .setLngLat(
+                  clickedCoordinates
+                )
                 .setHTML(
                   popupHtml
                 )
@@ -4127,24 +3907,6 @@ popupElement?.addEventListener(
         // ======================================
         // CURSOR
         // ======================================
-
-        activeMap.on(
-          "mouseenter",
-          CLUSTER_LAYER_ID,
-          () => {
-            activeMap.getCanvas().style.cursor =
-              "pointer";
-          }
-        );
-
-        activeMap.on(
-          "mouseleave",
-          CLUSTER_LAYER_ID,
-          () => {
-            activeMap.getCanvas().style.cursor =
-              "";
-          }
-        );
 
         activeMap.on(
           "mouseenter",

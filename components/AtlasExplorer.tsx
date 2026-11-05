@@ -23,6 +23,7 @@ type Location = {
   city: string | null;
   region: string | null;
   country: string;
+  country_code: string | null;
 };
 
 type AtlasExplorerProps = {
@@ -76,11 +77,23 @@ const LISTENER_STORAGE_KEY =
 const LOCATION_STORAGE_KEY =
   "underground-atlas-locations";
 
+const CONTINENT_STORAGE_KEY =
+  "underground-atlas-continents";
+
+const COUNTRY_STORAGE_KEY =
+  "underground-atlas-countries";
+
 const ERA_STORAGE_KEY =
   "underground-atlas-eras";
 
 const EVENT_LOCATION_STORAGE_KEY =
   "underground-atlas-event-locations";
+
+const EVENT_CONTINENT_STORAGE_KEY =
+  "underground-atlas-event-continents";
+
+const EVENT_COUNTRY_STORAGE_KEY =
+  "underground-atlas-event-countries";
 
 const EVENT_GENRE_STORAGE_KEY =
   "underground-atlas-event-genres";
@@ -90,6 +103,172 @@ const EVENT_WINDOW_STORAGE_KEY =
 
 const EVENT_RADIUS_STORAGE_KEY =
   "underground-atlas-event-radius";
+
+type ContinentName =
+  | "Africa"
+  | "Asia"
+  | "Europe"
+  | "North America"
+  | "Oceania"
+  | "South America";
+
+const CONTINENT_CODE_GROUPS: Record<
+  ContinentName,
+  string[]
+> = {
+  Africa: [
+    "DZ", "AO", "BJ", "BW", "BF", "BI", "CV", "CM",
+    "CF", "TD", "KM", "CG", "CD", "CI", "DJ", "EG",
+    "GQ", "ER", "SZ", "ET", "GA", "GM", "GH", "GN",
+    "GW", "KE", "LS", "LR", "LY", "MG", "MW", "ML",
+    "MR", "MU", "YT", "MA", "MZ", "NA", "NE", "NG",
+    "RE", "RW", "SH", "ST", "SN", "SC", "SL", "SO",
+    "ZA", "SS", "SD", "TZ", "TG", "TN", "UG", "EH",
+    "ZM", "ZW",
+  ],
+  Asia: [
+    "AF", "AM", "AZ", "BH", "BD", "BT", "BN", "KH",
+    "CN", "CY", "GE", "HK", "IN", "ID", "IR", "IQ",
+    "IL", "JP", "JO", "KZ", "KW", "KG", "LA", "LB",
+    "MO", "MY", "MV", "MN", "MM", "NP", "KP", "OM",
+    "PK", "PS", "PH", "QA", "SA", "SG", "KR", "LK",
+    "SY", "TW", "TJ", "TH", "TL", "TR", "TM", "AE",
+    "UZ", "VN", "YE",
+  ],
+  Europe: [
+    "AX", "AL", "AD", "AT", "BY", "BE", "BA", "BG",
+    "HR", "CZ", "DK", "EE", "FO", "FI", "FR", "DE",
+    "GI", "GR", "GG", "VA", "HU", "IS", "IE", "IM",
+    "IT", "JE", "LV", "LI", "LT", "LU", "MT", "MD",
+    "MC", "ME", "NL", "MK", "NO", "PL", "PT", "RO",
+    "RU", "SM", "RS", "SK", "SI", "ES", "SJ", "SE",
+    "CH", "UA", "GB", "XK",
+  ],
+  "North America": [
+    "AI", "AG", "AW", "BS", "BB", "BZ", "BM", "BQ",
+    "VG", "CA", "KY", "CR", "CU", "CW", "DM", "DO",
+    "SV", "GL", "GD", "GP", "GT", "HT", "HN", "JM",
+    "MQ", "MX", "MS", "NI", "PA", "PR", "BL", "KN",
+    "LC", "MF", "PM", "VC", "SX", "TT", "TC", "US",
+    "VI",
+  ],
+  Oceania: [
+    "AS", "AU", "CK", "FJ", "PF", "GU", "KI", "MH",
+    "FM", "NR", "NC", "NZ", "NU", "NF", "MP", "PW",
+    "PG", "PN", "WS", "SB", "TK", "TO", "TV", "VU",
+    "WF",
+  ],
+  "South America": [
+    "AR", "BO", "BR", "CL", "CO", "EC", "FK", "GF",
+    "GY", "PY", "PE", "SR", "UY", "VE",
+  ],
+};
+
+const COUNTRY_CODE_TO_CONTINENT =
+  Object.entries(
+    CONTINENT_CODE_GROUPS
+  ).reduce(
+    (
+      result,
+      [continent, codes]
+    ) => {
+      codes.forEach(
+        (code) => {
+          result[code] =
+            continent as ContinentName;
+        }
+      );
+
+      return result;
+    },
+    {} as Record<
+      string,
+      ContinentName
+    >
+  );
+
+function normalizeCountryCode(
+  value: string | null
+) {
+  return value
+    ?.trim()
+    .toUpperCase() ?? "";
+}
+
+function countryKey(
+  location: Location
+) {
+  const code =
+    normalizeCountryCode(
+      location.country_code
+    );
+
+  return code
+    ? code
+    : `country:${location.country
+        .trim()
+        .toLowerCase()}`;
+}
+
+function continentForLocation(
+  location: Location
+): ContinentName | null {
+  const code =
+    normalizeCountryCode(
+      location.country_code
+    );
+
+  return code
+    ? COUNTRY_CODE_TO_CONTINENT[
+        code
+      ] ?? null
+    : null;
+}
+
+function resolveGeographicLocationSlugs(
+  locations: Location[],
+  continents: string[],
+  countries: string[]
+) {
+  if (
+    continents.length === 0 &&
+    countries.length === 0
+  ) {
+    return [];
+  }
+
+  return locations
+    .filter(
+      (location) => {
+        const continent =
+          continentForLocation(
+            location
+          );
+
+        const country =
+          countryKey(
+            location
+          );
+
+        return (
+          (
+            continent !==
+              null &&
+            continents.includes(
+              continent
+            )
+          ) ||
+          countries.includes(
+            country
+          )
+        );
+      }
+    )
+    .map(
+      (location) =>
+        location.slug
+    );
+}
 
 const ARTIST_STATUSES: ArtistStatus[] = [
   {
@@ -329,16 +508,29 @@ function readInitialStatuses() {
       );
 }
 
-function readInitialLocations() {
+function readInitialContinents() {
   const fromUrl =
     readUrlArray(
-      "locations"
+      "continents"
     );
 
   return fromUrl.length
     ? fromUrl
     : readStoredArray(
-        LOCATION_STORAGE_KEY
+        CONTINENT_STORAGE_KEY
+      );
+}
+
+function readInitialCountries() {
+  const fromUrl =
+    readUrlArray(
+      "countries"
+    );
+
+  return fromUrl.length
+    ? fromUrl
+    : readStoredArray(
+        COUNTRY_STORAGE_KEY
       );
 }
 
@@ -387,16 +579,29 @@ function readInitialMapMode(): MapMode {
   return "artists";
 }
 
-function readInitialEventLocations() {
+function readInitialEventContinents() {
   const fromUrl =
     readUrlArray(
-      "event_locations"
+      "event_continents"
     );
 
   return fromUrl.length
     ? fromUrl
     : readStoredArray(
-        EVENT_LOCATION_STORAGE_KEY
+        EVENT_CONTINENT_STORAGE_KEY
+      );
+}
+
+function readInitialEventCountries() {
+  const fromUrl =
+    readUrlArray(
+      "event_countries"
+    );
+
+  return fromUrl.length
+    ? fromUrl
+    : readStoredArray(
+        EVENT_COUNTRY_STORAGE_KEY
       );
 }
 
@@ -459,9 +664,13 @@ function updateUrl(
   statuses: string[],
   listenerRange: string,
   locations: string[],
+  continents: string[],
+  countries: string[],
   eras: string[],
   mode: MapMode,
   eventLocations: string[],
+  eventContinents: string[],
+  eventCountries: string[],
   eventGenres: string[],
   eventWindow: string
 ) {
@@ -510,14 +719,29 @@ function updateUrl(
     );
   }
 
-  if (locations.length) {
+  url.searchParams.delete(
+    "locations"
+  );
+
+  if (continents.length) {
     url.searchParams.set(
-      "locations",
-      locations.join(",")
+      "continents",
+      continents.join(",")
     );
   } else {
     url.searchParams.delete(
-      "locations"
+      "continents"
+    );
+  }
+
+  if (countries.length) {
+    url.searchParams.set(
+      "countries",
+      countries.join(",")
+    );
+  } else {
+    url.searchParams.delete(
+      "countries"
     );
   }
 
@@ -541,16 +765,33 @@ function updateUrl(
       "events"
     );
 
+    url.searchParams.delete(
+      "event_locations"
+    );
+
     if (
-      eventLocations.length
+      eventContinents.length
     ) {
       url.searchParams.set(
-        "event_locations",
-        eventLocations.join(",")
+        "event_continents",
+        eventContinents.join(",")
       );
     } else {
       url.searchParams.delete(
-        "event_locations"
+        "event_continents"
+      );
+    }
+
+    if (
+      eventCountries.length
+    ) {
+      url.searchParams.set(
+        "event_countries",
+        eventCountries.join(",")
+      );
+    } else {
+      url.searchParams.delete(
+        "event_countries"
       );
     }
 
@@ -587,6 +828,14 @@ function updateUrl(
 
     url.searchParams.delete(
       "event_locations"
+    );
+
+    url.searchParams.delete(
+      "event_continents"
+    );
+
+    url.searchParams.delete(
+      "event_countries"
     );
 
     url.searchParams.delete(
@@ -640,6 +889,22 @@ export default function AtlasExplorer({
     useState("");
 
   const [
+    selectedContinents,
+    setSelectedContinents,
+  ] =
+    useState<string[]>(
+      []
+    );
+
+  const [
+    selectedCountries,
+    setSelectedCountries,
+  ] =
+    useState<string[]>(
+      []
+    );
+
+  const [
     selectedLocations,
     setSelectedLocations,
   ] =
@@ -650,6 +915,22 @@ export default function AtlasExplorer({
   const [
     selectedEras,
     setSelectedEras,
+  ] =
+    useState<string[]>(
+      []
+    );
+
+  const [
+    selectedEventContinents,
+    setSelectedEventContinents,
+  ] =
+    useState<string[]>(
+      []
+    );
+
+  const [
+    selectedEventCountries,
+    setSelectedEventCountries,
   ] =
     useState<string[]>(
       []
@@ -795,6 +1076,107 @@ export default function AtlasExplorer({
     nearLongitude !==
       null;
 
+  const availableCountries =
+    useMemo(
+      () => {
+        const byKey =
+          new Map<
+            string,
+            {
+              value: string;
+              label: string;
+              continent:
+                | ContinentName
+                | null;
+            }
+          >();
+
+        locations.forEach(
+          (location) => {
+            const value =
+              countryKey(
+                location
+              );
+
+            if (
+              byKey.has(
+                value
+              )
+            ) {
+              return;
+            }
+
+            byKey.set(
+              value,
+              {
+                value,
+                label:
+                  location.country,
+                continent:
+                  continentForLocation(
+                    location
+                  ),
+              }
+            );
+          }
+        );
+
+        return Array.from(
+          byKey.values()
+        ).sort(
+          (
+            a,
+            b
+          ) =>
+            a.label.localeCompare(
+              b.label
+            )
+        );
+      },
+      [
+        locations,
+      ]
+    );
+
+  const availableContinents =
+    useMemo(
+      () => {
+        const values =
+          new Set<
+            ContinentName
+          >();
+
+        availableCountries.forEach(
+          (
+            country
+          ) => {
+            if (
+              country.continent
+            ) {
+              values.add(
+                country.continent
+              );
+            }
+          }
+        );
+
+        return Array.from(
+          values
+        ).sort(
+          (
+            a,
+            b
+          ) =>
+            a.localeCompare(
+              b
+            )
+        );
+      },
+      [
+        availableCountries,
+      ]
+    );
+
   useEffect(
     () => {
       const validGenreSlugs =
@@ -821,11 +1203,18 @@ export default function AtlasExplorer({
           )
         );
 
-      const validLocationSlugs =
+      const validContinents =
         new Set(
-          locations.map(
-            (location) =>
-              location.slug
+          availableContinents
+        );
+
+      const validCountries =
+        new Set(
+          availableCountries.map(
+            (
+              country
+            ) =>
+              country.value
           )
         );
 
@@ -871,12 +1260,31 @@ export default function AtlasExplorer({
           ? listenerValue
           : "";
 
-      const restoredLocations =
-        readInitialLocations().filter(
-          (slug) =>
-            validLocationSlugs.has(
-              slug
+      const restoredContinents =
+        readInitialContinents().filter(
+          (
+            continent
+          ) =>
+            validContinents.has(
+              continent as ContinentName
             )
+        );
+
+      const restoredCountries =
+        readInitialCountries().filter(
+          (
+            country
+          ) =>
+            validCountries.has(
+              country
+            )
+        );
+
+      const restoredLocations =
+        resolveGeographicLocationSlugs(
+          locations,
+          restoredContinents,
+          restoredCountries
         );
 
       const restoredEras =
@@ -887,12 +1295,31 @@ export default function AtlasExplorer({
             )
         );
 
-      const restoredEventLocations =
-        readInitialEventLocations().filter(
-          (slug) =>
-            validLocationSlugs.has(
-              slug
+      const restoredEventContinents =
+        readInitialEventContinents().filter(
+          (
+            continent
+          ) =>
+            validContinents.has(
+              continent as ContinentName
             )
+        );
+
+      const restoredEventCountries =
+        readInitialEventCountries().filter(
+          (
+            country
+          ) =>
+            validCountries.has(
+              country
+            )
+        );
+
+      const restoredEventLocations =
+        resolveGeographicLocationSlugs(
+          locations,
+          restoredEventContinents,
+          restoredEventCountries
         );
 
       const restoredEventGenres =
@@ -928,12 +1355,28 @@ export default function AtlasExplorer({
         restoredListenerRange
       );
 
+      setSelectedContinents(
+        restoredContinents
+      );
+
+      setSelectedCountries(
+        restoredCountries
+      );
+
       setSelectedLocations(
         restoredLocations
       );
 
       setSelectedEras(
         restoredEras
+      );
+
+      setSelectedEventContinents(
+        restoredEventContinents
+      );
+
+      setSelectedEventCountries(
+        restoredEventCountries
       );
 
       setSelectedEventLocations(
@@ -961,9 +1404,13 @@ export default function AtlasExplorer({
         restoredStatuses,
         restoredListenerRange,
         restoredLocations,
+        restoredContinents,
+        restoredCountries,
         restoredEras,
         restoredMode,
         restoredEventLocations,
+        restoredEventContinents,
+        restoredEventCountries,
         restoredEventGenres,
         restoredEventWindow
       );
@@ -975,6 +1422,8 @@ export default function AtlasExplorer({
     [
       genres,
       locations,
+      availableContinents,
+      availableCountries,
     ]
   );
 
@@ -991,9 +1440,13 @@ export default function AtlasExplorer({
         selectedStatuses,
         selectedListenerRange,
         selectedLocations,
+        selectedContinents,
+        selectedCountries,
         selectedEras,
         mapMode,
         selectedEventLocations,
+        selectedEventContinents,
+        selectedEventCountries,
         selectedEventGenres,
         selectedEventWindow
       );
@@ -1014,10 +1467,21 @@ export default function AtlasExplorer({
         );
 
         window.sessionStorage.setItem(
-          LOCATION_STORAGE_KEY,
+          CONTINENT_STORAGE_KEY,
           JSON.stringify(
-            selectedLocations
+            selectedContinents
           )
+        );
+
+        window.sessionStorage.setItem(
+          COUNTRY_STORAGE_KEY,
+          JSON.stringify(
+            selectedCountries
+          )
+        );
+
+        window.sessionStorage.removeItem(
+          LOCATION_STORAGE_KEY
         );
 
         window.sessionStorage.setItem(
@@ -1028,10 +1492,21 @@ export default function AtlasExplorer({
         );
 
         window.sessionStorage.setItem(
-          EVENT_LOCATION_STORAGE_KEY,
+          EVENT_CONTINENT_STORAGE_KEY,
           JSON.stringify(
-            selectedEventLocations
+            selectedEventContinents
           )
+        );
+
+        window.sessionStorage.setItem(
+          EVENT_COUNTRY_STORAGE_KEY,
+          JSON.stringify(
+            selectedEventCountries
+          )
+        );
+
+        window.sessionStorage.removeItem(
+          EVENT_LOCATION_STORAGE_KEY
         );
 
         window.sessionStorage.setItem(
@@ -1074,9 +1549,13 @@ export default function AtlasExplorer({
       selectedStatuses,
       selectedListenerRange,
       selectedLocations,
+      selectedContinents,
+      selectedCountries,
       selectedEras,
       mapMode,
       selectedEventLocations,
+      selectedEventContinents,
+      selectedEventCountries,
       selectedEventGenres,
       selectedEventWindow,
       selectedRadius,
@@ -1172,90 +1651,249 @@ export default function AtlasExplorer({
     );
   }
 
-  function toggleLocation(
-    slug: string
+  function focusFirstGeographicMatch(
+    continents: string[],
+    countries: string[]
   ) {
-    const isSelected =
-      selectedLocations.includes(
-        slug
+    const match =
+      locations.find(
+        (
+          location
+        ) => {
+          const continent =
+            continentForLocation(
+              location
+            );
+
+          return (
+            (
+              continent !==
+                null &&
+              continents.includes(
+                continent
+              )
+            ) ||
+            countries.includes(
+              countryKey(
+                location
+              )
+            )
+          );
+        }
       );
 
+    if (!match) {
+      return;
+    }
+
+    setLocationFocusSlug(
+      match.slug
+    );
+
+    setLocationFocusToken(
+      (
+        current
+      ) =>
+        current + 1
+    );
+  }
+
+  function toggleArtistContinent(
+    continent: string
+  ) {
+    const isSelected =
+      selectedContinents.includes(
+        continent
+      );
+
+    const nextContinents =
+      isSelected
+        ? selectedContinents.filter(
+            (
+              item
+            ) =>
+              item !==
+              continent
+          )
+        : [
+            ...selectedContinents,
+            continent,
+          ];
+
+    setSelectedContinents(
+      nextContinents
+    );
+
     setSelectedLocations(
-      (current) =>
-        current.includes(
-          slug
-        )
-          ? current.filter(
-              (item) =>
-                item !==
-                slug
-            )
-          : [
-              ...current,
-              slug,
-            ]
+      resolveGeographicLocationSlugs(
+        locations,
+        nextContinents,
+        selectedCountries
+      )
     );
 
     if (!isSelected) {
-      setLocationFocusSlug(
-        slug
-      );
-
-      setLocationFocusToken(
-        (current) =>
-          current + 1
+      focusFirstGeographicMatch(
+        [
+          continent,
+        ],
+        []
       );
     }
   }
 
-  function toggleEventLocation(
-    slug: string
+  function toggleArtistCountry(
+    country: string
   ) {
     const isSelected =
-      selectedEventLocations.includes(
-        slug
+      selectedCountries.includes(
+        country
       );
 
-    if (
-      nearMeActive
-    ) {
-      setNearLatitude(
-        null
-      );
+    const nextCountries =
+      isSelected
+        ? selectedCountries.filter(
+            (
+              item
+            ) =>
+              item !==
+              country
+          )
+        : [
+            ...selectedCountries,
+            country,
+          ];
 
-      setNearLongitude(
-        null
-      );
+    setSelectedCountries(
+      nextCountries
+    );
 
-      setNearMeError(
-        null
-      );
-    }
-
-    setSelectedEventLocations(
-      (current) =>
-        current.includes(
-          slug
-        )
-          ? current.filter(
-              (item) =>
-                item !==
-                slug
-            )
-          : [
-              ...current,
-              slug,
-            ]
+    setSelectedLocations(
+      resolveGeographicLocationSlugs(
+        locations,
+        selectedContinents,
+        nextCountries
+      )
     );
 
     if (!isSelected) {
-      setLocationFocusSlug(
-        slug
+      focusFirstGeographicMatch(
+        [],
+        [
+          country,
+        ]
+      );
+    }
+  }
+
+  function clearNearMeForGeography() {
+    if (
+      !nearMeActive
+    ) {
+      return;
+    }
+
+    setNearLatitude(
+      null
+    );
+
+    setNearLongitude(
+      null
+    );
+
+    setNearMeError(
+      null
+    );
+  }
+
+  function toggleEventContinent(
+    continent: string
+  ) {
+    const isSelected =
+      selectedEventContinents.includes(
+        continent
       );
 
-      setLocationFocusToken(
-        (current) =>
-          current + 1
+    const nextContinents =
+      isSelected
+        ? selectedEventContinents.filter(
+            (
+              item
+            ) =>
+              item !==
+              continent
+          )
+        : [
+            ...selectedEventContinents,
+            continent,
+          ];
+
+    clearNearMeForGeography();
+
+    setSelectedEventContinents(
+      nextContinents
+    );
+
+    setSelectedEventLocations(
+      resolveGeographicLocationSlugs(
+        locations,
+        nextContinents,
+        selectedEventCountries
+      )
+    );
+
+    if (!isSelected) {
+      focusFirstGeographicMatch(
+        [
+          continent,
+        ],
+        []
+      );
+    }
+  }
+
+  function toggleEventCountry(
+    country: string
+  ) {
+    const isSelected =
+      selectedEventCountries.includes(
+        country
+      );
+
+    const nextCountries =
+      isSelected
+        ? selectedEventCountries.filter(
+            (
+              item
+            ) =>
+              item !==
+              country
+          )
+        : [
+            ...selectedEventCountries,
+            country,
+          ];
+
+    clearNearMeForGeography();
+
+    setSelectedEventCountries(
+      nextCountries
+    );
+
+    setSelectedEventLocations(
+      resolveGeographicLocationSlugs(
+        locations,
+        selectedEventContinents,
+        nextCountries
+      )
+    );
+
+    if (!isSelected) {
+      focusFirstGeographicMatch(
+        [],
+        [
+          country,
+        ]
       );
     }
   }
@@ -1296,6 +1934,8 @@ export default function AtlasExplorer({
     setSelectedGenres([]);
     setSelectedStatuses([]);
     setSelectedListenerRange("");
+    setSelectedContinents([]);
+    setSelectedCountries([]);
     setSelectedLocations([]);
     setSelectedEras([]);
   }
@@ -1315,6 +1955,14 @@ export default function AtlasExplorer({
   }
 
   function clearEventFilters() {
+    setSelectedEventContinents(
+      []
+    );
+
+    setSelectedEventCountries(
+      []
+    );
+
     setSelectedEventLocations(
       []
     );
@@ -1376,6 +2024,14 @@ export default function AtlasExplorer({
       (
         position
       ) => {
+        setSelectedEventContinents(
+          []
+        );
+
+        setSelectedEventCountries(
+          []
+        );
+
         setSelectedEventLocations(
           []
         );
@@ -1539,7 +2195,8 @@ export default function AtlasExplorer({
   const activeArtistFilterCount =
     selectedGenres.length +
     selectedStatuses.length +
-    selectedLocations.length +
+    selectedContinents.length +
+    selectedCountries.length +
     selectedEras.length +
     (
       selectedListenerRange
@@ -1552,7 +2209,8 @@ export default function AtlasExplorer({
     0;
 
   const activeEventFilterCount =
-    selectedEventLocations.length +
+    selectedEventContinents.length +
+    selectedEventCountries.length +
     selectedEventGenres.length +
     (
       selectedEventWindow !==
@@ -1847,7 +2505,7 @@ export default function AtlasExplorer({
                       value:
                         "location",
                       label:
-                        "Location",
+                        "Geography",
                     },
                     {
                       value:
@@ -1897,7 +2555,7 @@ export default function AtlasExplorer({
                       value:
                         "location",
                       label:
-                        "Location",
+                        "Geography",
                     },
                     {
                       value:
@@ -2025,51 +2683,102 @@ export default function AtlasExplorer({
                   "location" && (
                   <div>
                     <p className="text-[10px] font-black uppercase tracking-[0.18em] text-black/50">
-                      Location
+                      Geography
                     </p>
 
-                    <div className="mt-1.5 flex flex-wrap gap-2">
-                      {locations.map(
-                        (
-                          location
-                        ) => {
-                          const selected =
-                            selectedLocations.includes(
-                              location.slug
-                            );
+                    <p className="mt-1 text-xs text-black/50">
+                      Filter by continent or country. Individual places remain available under Places.
+                    </p>
 
-                          return (
-                            <button
-                              key={
-                                location.id
-                              }
-                              type="button"
-                              onClick={() =>
-                                toggleLocation(
-                                  location.slug
-                                )
-                              }
-                              className={
-                                selected
-                                  ? "min-h-10 border-2 border-black bg-black px-3 py-1.5 text-[11px] font-black uppercase text-white"
-                                  : "min-h-10 border-2 border-black bg-white px-3 py-1.5 text-[11px] font-black uppercase transition-colors hover:bg-black hover:text-white"
-                              }
-                            >
-                              {[
-                                location.name,
-                                location.region,
-                              ]
-                                .filter(
-                                  Boolean
-                                )
-                                .join(
-                                  ", "
-                                )}
-                            </button>
-                          );
-                        }
-                      )}
-                    </div>
+                    {availableContinents.length >
+                      0 && (
+                      <div className="mt-3">
+                        <p className="text-[9px] font-black uppercase tracking-[0.16em] text-black/45">
+                          Continent
+                        </p>
+
+                        <div className="mt-1.5 flex flex-wrap gap-2">
+                          {availableContinents.map(
+                            (
+                              continent
+                            ) => {
+                              const selected =
+                                selectedContinents.includes(
+                                  continent
+                                );
+
+                              return (
+                                <button
+                                  key={
+                                    continent
+                                  }
+                                  type="button"
+                                  onClick={() =>
+                                    toggleArtistContinent(
+                                      continent
+                                    )
+                                  }
+                                  className={
+                                    selected
+                                      ? "min-h-10 border-2 border-black bg-black px-3 py-1.5 text-[11px] font-black uppercase text-white"
+                                      : "min-h-10 border-2 border-black bg-white px-3 py-1.5 text-[11px] font-black uppercase transition-colors hover:bg-black hover:text-white"
+                                  }
+                                >
+                                  {
+                                    continent
+                                  }
+                                </button>
+                              );
+                            }
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {availableCountries.length >
+                      0 && (
+                      <div className="mt-4">
+                        <p className="text-[9px] font-black uppercase tracking-[0.16em] text-black/45">
+                          Country
+                        </p>
+
+                        <div className="mt-1.5 flex flex-wrap gap-2">
+                          {availableCountries.map(
+                            (
+                              country
+                            ) => {
+                              const selected =
+                                selectedCountries.includes(
+                                  country.value
+                                );
+
+                              return (
+                                <button
+                                  key={
+                                    country.value
+                                  }
+                                  type="button"
+                                  onClick={() =>
+                                    toggleArtistCountry(
+                                      country.value
+                                    )
+                                  }
+                                  className={
+                                    selected
+                                      ? "min-h-10 border-2 border-black bg-black px-3 py-1.5 text-[11px] font-black uppercase text-white"
+                                      : "min-h-10 border-2 border-black bg-white px-3 py-1.5 text-[11px] font-black uppercase transition-colors hover:bg-black hover:text-white"
+                                  }
+                                >
+                                  {
+                                    country.label
+                                  }
+                                </button>
+                              );
+                            }
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -2523,55 +3232,102 @@ export default function AtlasExplorer({
                   "location" && (
                   <div>
                     <p className="text-[10px] font-black uppercase tracking-[0.18em] text-black/50">
-                      Location
+                      Geography
                     </p>
 
                     <p className="mt-1 text-xs text-black/50">
-                      Select one or more Atlas locations.
+                      Filter events by continent or country. Use Places to jump to a specific city.
                     </p>
 
-                    <div className="mt-1.5 flex flex-wrap gap-2">
-                      {locations.map(
-                        (
-                          location
-                        ) => {
-                          const selected =
-                            selectedEventLocations.includes(
-                              location.slug
-                            );
+                    {availableContinents.length >
+                      0 && (
+                      <div className="mt-3">
+                        <p className="text-[9px] font-black uppercase tracking-[0.16em] text-black/45">
+                          Continent
+                        </p>
 
-                          return (
-                            <button
-                              key={
-                                location.id
-                              }
-                              type="button"
-                              onClick={() =>
-                                toggleEventLocation(
-                                  location.slug
-                                )
-                              }
-                              className={
-                                selected
-                                  ? "min-h-10 border-2 border-black bg-black px-3 py-1.5 text-[11px] font-black uppercase text-white"
-                                  : "min-h-10 border-2 border-black bg-white px-3 py-1.5 text-[11px] font-black uppercase transition-colors hover:bg-black hover:text-white"
-                              }
-                            >
-                              {[
-                                location.name,
-                                location.region,
-                              ]
-                                .filter(
-                                  Boolean
-                                )
-                                .join(
-                                  ", "
-                                )}
-                            </button>
-                          );
-                        }
-                      )}
-                    </div>
+                        <div className="mt-1.5 flex flex-wrap gap-2">
+                          {availableContinents.map(
+                            (
+                              continent
+                            ) => {
+                              const selected =
+                                selectedEventContinents.includes(
+                                  continent
+                                );
+
+                              return (
+                                <button
+                                  key={
+                                    continent
+                                  }
+                                  type="button"
+                                  onClick={() =>
+                                    toggleEventContinent(
+                                      continent
+                                    )
+                                  }
+                                  className={
+                                    selected
+                                      ? "min-h-10 border-2 border-black bg-black px-3 py-1.5 text-[11px] font-black uppercase text-white"
+                                      : "min-h-10 border-2 border-black bg-white px-3 py-1.5 text-[11px] font-black uppercase transition-colors hover:bg-black hover:text-white"
+                                  }
+                                >
+                                  {
+                                    continent
+                                  }
+                                </button>
+                              );
+                            }
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {availableCountries.length >
+                      0 && (
+                      <div className="mt-4">
+                        <p className="text-[9px] font-black uppercase tracking-[0.16em] text-black/45">
+                          Country
+                        </p>
+
+                        <div className="mt-1.5 flex flex-wrap gap-2">
+                          {availableCountries.map(
+                            (
+                              country
+                            ) => {
+                              const selected =
+                                selectedEventCountries.includes(
+                                  country.value
+                                );
+
+                              return (
+                                <button
+                                  key={
+                                    country.value
+                                  }
+                                  type="button"
+                                  onClick={() =>
+                                    toggleEventCountry(
+                                      country.value
+                                    )
+                                  }
+                                  className={
+                                    selected
+                                      ? "min-h-10 border-2 border-black bg-black px-3 py-1.5 text-[11px] font-black uppercase text-white"
+                                      : "min-h-10 border-2 border-black bg-white px-3 py-1.5 text-[11px] font-black uppercase transition-colors hover:bg-black hover:text-white"
+                                  }
+                                >
+                                  {
+                                    country.label
+                                  }
+                                </button>
+                              );
+                            }
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -2766,40 +3522,56 @@ export default function AtlasExplorer({
               </button>
             )}
 
-            {selectedEventLocations.map(
+            {selectedEventContinents.map(
               (
-                slug
+                continent
+              ) => (
+                <button
+                  key={`event-continent-${continent}`}
+                  type="button"
+                  onClick={() =>
+                    toggleEventContinent(
+                      continent
+                    )
+                  }
+                  className="min-h-9 border-2 border-black bg-black px-2.5 py-1 text-[10px] font-black uppercase text-white"
+                >
+                  {continent} ×
+                </button>
+              )
+            )}
+
+            {selectedEventCountries.map(
+              (
+                value
               ) => {
-                const location =
-                  locations.find(
+                const country =
+                  availableCountries.find(
                     (
                       item
                     ) =>
-                      item.slug ===
-                      slug
+                      item.value ===
+                      value
                   );
 
                 if (
-                  !location
+                  !country
                 ) {
                   return null;
                 }
 
                 return (
                   <button
-                    key={`event-location-${location.id}`}
+                    key={`event-country-${country.value}`}
                     type="button"
                     onClick={() =>
-                      toggleEventLocation(
-                        location.slug
+                      toggleEventCountry(
+                        country.value
                       )
                     }
                     className="min-h-9 border-2 border-black bg-black px-2.5 py-1 text-[10px] font-black uppercase text-white"
                   >
-                    {
-                      location.name
-                    }{" "}
-                    ×
+                    {country.label} ×
                   </button>
                 );
               }
@@ -2824,40 +3596,56 @@ export default function AtlasExplorer({
               Active Filters
             </span>
 
-            {selectedLocations.map(
+            {selectedContinents.map(
               (
-                slug
+                continent
+              ) => (
+                <button
+                  key={`artist-continent-${continent}`}
+                  type="button"
+                  onClick={() =>
+                    toggleArtistContinent(
+                      continent
+                    )
+                  }
+                  className="min-h-9 border-2 border-black bg-black px-2.5 py-1 text-[10px] font-black uppercase text-white"
+                >
+                  {continent} ×
+                </button>
+              )
+            )}
+
+            {selectedCountries.map(
+              (
+                value
               ) => {
-                const location =
-                  locations.find(
+                const country =
+                  availableCountries.find(
                     (
                       item
                     ) =>
-                      item.slug ===
-                      slug
+                      item.value ===
+                      value
                   );
 
                 if (
-                  !location
+                  !country
                 ) {
                   return null;
                 }
 
                 return (
                   <button
-                    key={`artist-location-${location.id}`}
+                    key={`artist-country-${country.value}`}
                     type="button"
                     onClick={() =>
-                      toggleLocation(
-                        location.slug
+                      toggleArtistCountry(
+                        country.value
                       )
                     }
                     className="min-h-9 border-2 border-black bg-black px-2.5 py-1 text-[10px] font-black uppercase text-white"
                   >
-                    {
-                      location.name
-                    }{" "}
-                    ×
+                    {country.label} ×
                   </button>
                 );
               }

@@ -42,7 +42,8 @@ export default async function HomePage() {
         slug,
         city,
         region,
-        country
+        country,
+        country_code
         `
       )
       .order(
