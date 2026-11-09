@@ -79,7 +79,10 @@ function formatPlatform(
   platform: string
 ) {
   return platform
-    .replaceAll("_", " ")
+    .replaceAll(
+      "_",
+      " "
+    )
     .replace(
       /\b\w/g,
       (letter) =>
@@ -91,7 +94,10 @@ function formatReleaseType(
   value: string
 ) {
   return value
-    .replaceAll("_", " ")
+    .replaceAll(
+      "_",
+      " "
+    )
     .replace(
       /\b\w/g,
       (letter) =>
@@ -107,7 +113,10 @@ function formatRelationship(
   }
 
   return value
-    .replaceAll("_", " ")
+    .replaceAll(
+      "_",
+      " "
+    )
     .replace(
       /\b\w/g,
       (letter) =>
@@ -400,6 +409,54 @@ function PlatformIcon({
   }
 }
 
+function getPlatformColorClass(
+  platform: string
+) {
+  const key =
+    platform
+      .trim()
+      .toLowerCase()
+      .replaceAll(
+        " ",
+        "_"
+      );
+
+  switch (key) {
+    case "youtube":
+      return "text-[#FF0000]";
+
+    case "spotify":
+      return "text-[#1DB954]";
+
+    case "soundcloud":
+      return "text-[#FF5500]";
+
+    case "facebook":
+      return "text-[#1877F2]";
+
+    case "instagram":
+      return "text-[#E1306C]";
+
+    case "bluesky":
+      return "text-[#1185FE]";
+
+    case "apple_music":
+    case "applemusic":
+      return "text-[#FA243C]";
+
+    case "bandcamp":
+      return "text-[#629AA9]";
+
+    case "tiktok":
+    case "x":
+    case "twitter":
+    case "official":
+    case "website":
+    default:
+      return "text-black";
+  }
+}
+
 function PlatformIconLink({
   platform,
   url,
@@ -415,6 +472,11 @@ function PlatformIconLink({
       platform
     );
 
+  const platformColor =
+    getPlatformColorClass(
+      platform
+    );
+
   return (
     <a
       href={url}
@@ -426,13 +488,29 @@ function PlatformIconLink({
       title={
         linkLabel
       }
-      className="inline-flex h-10 w-10 shrink-0 items-center justify-center border-2 border-black bg-white transition-colors hover:bg-black hover:text-white"
+      className={`
+        group
+        inline-flex
+        h-10
+        w-10
+        shrink-0
+        items-center
+        justify-center
+        border-2
+        border-black
+        bg-white
+        transition-colors
+        hover:bg-black
+        ${platformColor}
+      `}
     >
-      <PlatformIcon
-        platform={
-          platform
-        }
-      />
+      <span className="flex items-center justify-center transition-colors group-hover:text-white">
+        <PlatformIcon
+          platform={
+            platform
+          }
+        />
+      </span>
 
       <span className="sr-only">
         {linkLabel}
