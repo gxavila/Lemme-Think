@@ -2071,6 +2071,40 @@ export default function AtlasExplorer({
     setFilterResults([]);
   }
 
+  function resetExploreMenu() {
+    if (
+      isArtistMode
+    ) {
+      clearArtistFilters();
+    } else {
+      clearEventFilters();
+    }
+
+    setMapSearchQuery(
+      ""
+    );
+
+    setMapSearchOpen(
+      false
+    );
+
+    setLocationFocusSlug(
+      null
+    );
+
+    setResultFocusLatitude(
+      null
+    );
+
+    setResultFocusLongitude(
+      null
+    );
+
+    setResultScope(
+      "map"
+    );
+  }
+
   function changeRadius(
     radius: number
   ) {
@@ -3045,16 +3079,28 @@ export default function AtlasExplorer({
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={() =>
-              setDrawerOpen(false)
-            }
-            className="flex h-9 w-9 items-center justify-center border-2 border-black bg-white text-lg font-black transition-colors hover:bg-black hover:text-white"
-            aria-label="Close Explore drawer"
-          >
-            ×
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={
+                resetExploreMenu
+              }
+              className="min-h-9 border-2 border-black bg-white px-3 py-2 text-[9px] font-black uppercase tracking-[0.1em] transition-colors hover:bg-black hover:text-white"
+            >
+              Reset
+            </button>
+
+            <button
+              type="button"
+              onClick={() =>
+                setDrawerOpen(false)
+              }
+              className="flex h-9 w-9 items-center justify-center border-2 border-black bg-black text-lg font-black text-white transition-colors hover:bg-white hover:text-black"
+              aria-label="Close Explore drawer"
+            >
+              ×
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto overscroll-contain">
@@ -3625,7 +3671,7 @@ export default function AtlasExplorer({
               )}
             </div>
 
-            <div className="mt-4 flex items-center justify-between gap-3 border-t border-black/20 pt-3">
+            <div className="mt-4 border-t border-black/20 pt-3">
               <p className="text-[9px] font-black uppercase tracking-[0.1em] text-black/40">
                 {activeFilterCount}{" "}
                 {activeFilterCount ===
@@ -3633,20 +3679,6 @@ export default function AtlasExplorer({
                   ? "filter active"
                   : "filters active"}
               </p>
-
-              {hasActiveFilters && (
-                <button
-                  type="button"
-                  onClick={
-                    isArtistMode
-                      ? clearArtistFilters
-                      : clearEventFilters
-                  }
-                  className="text-[9px] font-black uppercase tracking-[0.1em] hover:underline"
-                >
-                  Clear Filters
-                </button>
-              )}
             </div>
           </section>
         </div>
