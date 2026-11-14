@@ -2068,6 +2068,12 @@ export default function AtlasMap({
     useState(false);
 
   const [
+    hydrated,
+    setHydrated,
+  ] =
+    useState(false);
+
+  const [
     showEmptyState,
     setShowEmptyState,
   ] =
@@ -2082,6 +2088,15 @@ export default function AtlasMap({
     useRef(
       onResultsChange
     );
+
+  useEffect(
+    () => {
+      setHydrated(
+        true
+      );
+    },
+    []
+  );
 
   useEffect(
     () => {
@@ -4487,6 +4502,7 @@ export default function AtlasMap({
             fitMapToResults
           }
           disabled={
+            !hydrated ||
             !hasCompletedQuery ||
             visibleResultCount === 0
           }

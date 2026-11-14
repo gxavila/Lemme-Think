@@ -81,6 +81,30 @@ type ResultScope =
   | "filtered"
   | "map";
 
+type EssentialTrackLink = {
+  platform: string;
+  url: string;
+  label: string | null;
+};
+
+type EssentialTrackResult = {
+  playlist_id: string;
+  playlist_name: string;
+  playlist_slug: string;
+  playlist_description: string | null;
+  playlist_position: number;
+  editorial_note: string | null;
+  track_id: string;
+  track_title: string;
+  artist_id: string;
+  artist_name: string;
+  artist_slug: string;
+  release_title: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  links: EssentialTrackLink[] | null;
+};
+
 const GENRE_STORAGE_KEY =
   "underground-atlas-genres";
 
@@ -509,6 +533,26 @@ function readInitialGenres() {
     : readStoredArray(
         GENRE_STORAGE_KEY
       );
+}
+
+function readInitialArtistSlug() {
+  if (
+    typeof window ===
+    "undefined"
+  ) {
+    return "";
+  }
+
+  const params =
+    new URLSearchParams(
+      window.location.search
+    );
+
+  return (
+    params.get(
+      "artist"
+    )?.trim() ?? ""
+  );
 }
 
 function readInitialStatuses() {
@@ -1073,6 +1117,20 @@ export default function AtlasExplorer({
     useState(false);
 
   const [
+    essentialTracks,
+    setEssentialTracks,
+  ] =
+    useState<EssentialTrackResult[]>(
+      []
+    );
+
+  const [
+    essentialTracksLoading,
+    setEssentialTracksLoading,
+  ] =
+    useState(false);
+
+  const [
     filterFitToken,
     setFilterFitToken,
   ] =
@@ -1107,6 +1165,20 @@ export default function AtlasExplorer({
     setResultFocusToken,
   ] =
     useState(0);
+
+  const [
+    artistFocusSlug,
+    setArtistFocusSlug,
+  ] =
+    useState<string | null>(
+      null
+    );
+
+  const [
+    artistFocusHandled,
+    setArtistFocusHandled,
+  ] =
+    useState(false);
 
   const supabase =
     useMemo(
@@ -1425,6 +1497,18 @@ export default function AtlasExplorer({
 
       const restoredMode =
         readInitialMapMode();
+
+      const restoredArtistFocusSlug =
+        readInitialArtistSlug();
+
+      setArtistFocusSlug(
+        restoredArtistFocusSlug ||
+        null
+      );
+
+      setArtistFocusHandled(
+        false
+      );
 
       setSelectedGenres(
         restoredGenres
@@ -2099,6 +2183,34 @@ export default function AtlasExplorer({
     setResultFocusLongitude(
       null
     );
+
+    setArtistFocusSlug(
+      null
+    );
+
+    setArtistFocusHandled(
+      true
+    );
+
+    if (
+      typeof window !==
+      "undefined"
+    ) {
+      const url =
+        new URL(
+          window.location.href
+        );
+
+      url.searchParams.delete(
+        "artist"
+      );
+
+      window.history.replaceState(
+        {},
+        "",
+        `${url.pathname}${url.search}${url.hash}`
+      );
+    }
 
     setResultScope(
       "map"
@@ -2857,6 +2969,112 @@ export default function AtlasExplorer({
     ]
   );
 
+  const selectedEssentialGenre =
+    useMemo(
+      () => {
+        if (
+          !isArtistMode ||
+          selectedGenres.length !==
+            1
+        ) {
+          return null;
+        }
+
+        return (
+          genres.find(
+            (genre) =>
+              genre.slug ===
+              selectedGenres[0]
+          ) ?? null
+        );
+      },
+      [
+        isArtistMode,
+        selectedGenres,
+        genres,
+      ]
+    );
+
+  useEffect(
+    () => {
+      if (
+        !hydrated ||
+        !selectedEssentialGenre
+      ) {
+        setEssentialTracks([]);
+        setEssentialTracksLoading(
+          false
+        );
+        return;
+      }
+
+      const genreSlug =
+        selectedEssentialGenre.slug;
+
+      let cancelled =
+        false;
+
+      async function loadEssentialTracks() {
+        setEssentialTracksLoading(
+          true
+        );
+
+        const {
+          data,
+          error,
+        } =
+          await supabase.rpc(
+            "get_genre_essential_playlist",
+            {
+              genre_slug:
+                genreSlug,
+            }
+          );
+
+        if (cancelled) {
+          return;
+        }
+
+        if (error) {
+          console.error(
+            "Essential playlist query failed:",
+            error
+          );
+
+          setEssentialTracks([]);
+          setEssentialTracksLoading(
+            false
+          );
+          return;
+        }
+
+        setEssentialTracks(
+          Array.isArray(data)
+            ? (
+                data as EssentialTrackResult[]
+              )
+            : []
+        );
+
+        setEssentialTracksLoading(
+          false
+        );
+      }
+
+      void loadEssentialTracks();
+
+      return () => {
+        cancelled =
+          true;
+      };
+    },
+    [
+      hydrated,
+      selectedEssentialGenre,
+      supabase,
+    ]
+  );
+
   const displayedResults =
     resultScope ===
       "filtered" &&
@@ -2906,6 +3124,98 @@ export default function AtlasExplorer({
       false
     );
   }
+
+  function locateEssentialTrack(
+    track: EssentialTrackResult
+  ) {
+    locateResult({
+      kind: "artist",
+      id: track.artist_id,
+      name: track.artist_name,
+      slug: track.artist_slug,
+      subtitle:
+        track.release_title ??
+        undefined,
+      latitude:
+        track.latitude,
+      longitude:
+        track.longitude,
+    });
+  }
+
+  useEffect(
+    () => {
+      if (
+        !hydrated ||
+        !isArtistMode ||
+        !artistFocusSlug ||
+        artistFocusHandled
+      ) {
+        return;
+      }
+
+      const focusResult =
+        filterResults.find(
+          (result) =>
+            result.kind ===
+              "artist" &&
+            result.slug ===
+              artistFocusSlug &&
+            result.latitude !=
+              null &&
+            result.longitude !=
+              null
+        ) ??
+        visibleResults.find(
+          (result) =>
+            result.kind ===
+              "artist" &&
+            result.slug ===
+              artistFocusSlug &&
+            result.latitude !=
+              null &&
+            result.longitude !=
+              null
+        );
+
+      if (
+        !focusResult
+      ) {
+        return;
+      }
+
+      setResultFocusLatitude(
+        focusResult.latitude ??
+        null
+      );
+
+      setResultFocusLongitude(
+        focusResult.longitude ??
+        null
+      );
+
+      setResultFocusToken(
+        (current) =>
+          current + 1
+      );
+
+      setDrawerOpen(
+        false
+      );
+
+      setArtistFocusHandled(
+        true
+      );
+    },
+    [
+      hydrated,
+      isArtistMode,
+      artistFocusSlug,
+      artistFocusHandled,
+      filterResults,
+      visibleResults,
+    ]
+  );
 
   const featuredLocations =
     useMemo(
@@ -3457,6 +3767,172 @@ export default function AtlasExplorer({
               </div>
             )}
           </section>
+
+          {isArtistMode &&
+            selectedEssentialGenre && (
+              <section className="border-t-2 border-black bg-[#f3efe4] p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[9px] font-black uppercase tracking-[0.18em] text-black/45">
+                      Essential Tracks
+                    </p>
+
+                    <h3 className="mt-1 truncate text-lg font-black uppercase tracking-[-0.03em]">
+                      {
+                        selectedEssentialGenre.name
+                      }
+                    </h3>
+                  </div>
+
+                  <Link
+                    href={`/genres/${selectedEssentialGenre.slug}`}
+                    onClick={() =>
+                      setDrawerOpen(
+                        false
+                      )
+                    }
+                    className="shrink-0 text-[8px] font-black uppercase tracking-[0.1em] hover:underline"
+                  >
+                    Full List →
+                  </Link>
+                </div>
+
+                {essentialTracksLoading ? (
+                  <p className="mt-3 text-xs font-bold text-black/45">
+                    Loading Essential Tracks...
+                  </p>
+                ) : essentialTracks.length >
+                  0 ? (
+                  <div className="mt-3 border-y-2 border-black bg-white">
+                    {essentialTracks
+                      .slice(0, 8)
+                      .map(
+                        (track) => {
+                          const links =
+                            Array.isArray(
+                              track.links
+                            )
+                              ? track.links
+                              : [];
+
+                          const primaryLink =
+                            links[0] ??
+                            null;
+
+                          const canLocate =
+                            track.latitude !=
+                              null &&
+                            track.longitude !=
+                              null;
+
+                          return (
+                            <div
+                              key={track.track_id}
+                              className="grid grid-cols-[28px_minmax(0,1fr)] gap-2 border-b border-black/20 px-1 py-3 last:border-b-0"
+                            >
+                              <span className="pt-0.5 text-[9px] font-black tabular-nums text-black/35">
+                                {String(
+                                  track.playlist_position
+                                ).padStart(
+                                  2,
+                                  "0"
+                                )}
+                              </span>
+
+                              <div className="min-w-0">
+                                <Link
+                                  href={`/artists/${track.artist_slug}`}
+                                  onClick={() =>
+                                    setDrawerOpen(
+                                      false
+                                    )
+                                  }
+                                  className="group block min-w-0"
+                                >
+                                  <span className="block truncate text-xs font-black uppercase tracking-[-0.01em] group-hover:underline">
+                                    {
+                                      track.track_title
+                                    }
+                                  </span>
+
+                                  <span className="mt-0.5 block truncate text-[8px] font-bold uppercase tracking-[0.06em] text-black/45">
+                                    {
+                                      track.artist_name
+                                    }
+                                    {track.release_title
+                                      ? ` · ${track.release_title}`
+                                      : ""}
+                                  </span>
+                                </Link>
+
+                                <div className="mt-2 flex flex-wrap gap-1.5">
+                                  {primaryLink && (
+                                    <a
+                                      href={
+                                        primaryLink.url
+                                      }
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="border border-black px-2 py-1 text-[7px] font-black uppercase tracking-[0.08em] hover:bg-black hover:text-white"
+                                    >
+                                      Listen ↗
+                                    </a>
+                                  )}
+
+                                  {canLocate && (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        locateEssentialTrack(
+                                          track
+                                        )
+                                      }
+                                      className="border border-black px-2 py-1 text-[7px] font-black uppercase tracking-[0.08em] hover:bg-black hover:text-white"
+                                    >
+                                      Locate
+                                    </button>
+                                  )}
+
+                                  <Link
+                                    href={`/artists/${track.artist_slug}`}
+                                    onClick={() =>
+                                      setDrawerOpen(
+                                        false
+                                      )
+                                    }
+                                    className="border border-black px-2 py-1 text-[7px] font-black uppercase tracking-[0.08em] hover:bg-black hover:text-white"
+                                  >
+                                    Artist →
+                                  </Link>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        }
+                      )}
+                  </div>
+                ) : (
+                  <p className="mt-3 text-xs font-bold text-black/45">
+                    No published Essential Tracks yet.
+                  </p>
+                )}
+
+                {essentialTracks.length >
+                  8 && (
+                  <Link
+                    href={`/genres/${selectedEssentialGenre.slug}`}
+                    onClick={() =>
+                      setDrawerOpen(
+                        false
+                      )
+                    }
+                    className="mt-3 inline-flex text-[8px] font-black uppercase tracking-[0.1em] hover:underline"
+                  >
+                    View all {essentialTracks.length} tracks →
+                  </Link>
+                )}
+              </section>
+            )}
 
           {/* RESULTS */}
           <section className="bg-white p-4">

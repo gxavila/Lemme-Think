@@ -155,6 +155,21 @@ export default async function AdminPage() {
             </p>
           </Link>
 
+          {/* PLAYLISTS */}
+
+          <Link
+            href="/admin/playlists"
+            className="border-2 border-black bg-white p-6 transition-colors hover:bg-black hover:text-white"
+          >
+            <p className="text-2xl font-black uppercase">
+              Playlists
+            </p>
+
+            <p className="mt-3 text-sm">
+              Create and manage Essential and curated track lists.
+            </p>
+          </Link>
+
           {/* LOCATIONS */}
 
           <Link
